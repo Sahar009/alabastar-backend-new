@@ -146,7 +146,7 @@ class NewsletterService {
    */
   async sendConfirmationEmail(email, unsubscribeToken) {
     try {
-      const subject = 'Welcome to AWARI Newsletter! 🎉';
+      const subject = 'Welcome to Alabaster Newsletter! 🎉';
       const context = {
         email,
         unsubscribeToken,
