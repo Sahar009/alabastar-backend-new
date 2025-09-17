@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Alabastar as a Provider!</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2563EB 0%, #14B8A6 100%);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .welcome-message {
+            font-size: 18px;
+            color: #1a202c;
+            margin-bottom: 20px;
+        }
+        .steps {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        .step:last-child {
+            margin-bottom: 0;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #2563EB, #14B8A6);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .step-content h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            color: #1a202c;
+        }
+        .step-content p {
+            margin: 0;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #2563EB, #14B8A6);
+            color: white;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .cta-button:hover {
+            opacity: 0.9;
+        }
+        .info-box {
+            background-color: #e6fffa;
+            border-left: 4px solid #14B8A6;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .info-box h4 {
+            margin: 0 0 10px 0;
+            color: #065f46;
+            font-size: 16px;
+        }
+        .info-box p {
+            margin: 0;
+            color: #047857;
+            font-size: 14px;
+        }
+        .footer {
+            background-color: #f8fafc;
+            padding: 20px 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        .footer p {
+            margin: 0;
+            font-size: 12px;
+            color: #718096;
+        }
+        .social-links {
+            margin: 15px 0;
+        }
+        .social-links a {
+            display: inline-block;
+            margin: 0 10px;
+            color: #2563EB;
+            text-decoration: none;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            .header, .content, .footer {
+                padding: 20px;
+            }
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to Alabastar! 🎉</h1>
+            <p>You're now part of our trusted provider network</p>
+        </div>
+        
+        <div class="content">
+            <div class="welcome-message">
+                Hi <%= fullName %>,
+            </div>
+            
+            <p>Congratulations on joining Alabastar as a service provider! We're excited to have you on board and look forward to helping you grow your business.</p>
+            
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Complete Your Profile</h3>
+                        <p>Add your portfolio, set your availability, and upload professional photos to attract more customers.</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Get Verified</h3>
+                        <p>We'll review your documents and verify your credentials. This usually takes 24-48 hours.</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Start Accepting Bookings</h3>
+                        <p>Once verified, you'll appear in search results and can start receiving booking requests.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-box">
+                <h4>📋 What's Next?</h4>
+                <p>Check your email for verification updates. Once approved, you'll receive a notification and can start accepting bookings immediately. Our support team is here to help you succeed!</p>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="<%= dashboardUrl %>" class="cta-button">Access Your Dashboard</a>
+            </div>
+            
+            <p>If you have any questions or need assistance, don't hesitate to reach out to our support team at <a href="mailto:support@alabastar.app" style="color: #2563EB;">support@alabastar.app</a>.</p>
+            
+            <p>Welcome aboard!</p>
+            <p><strong>The Alabastar Team</strong></p>
+        </div>
+        
+        <div class="footer">
+            <div class="social-links">
+                <a href="#">Website</a>
+                <a href="#">Support</a>
+                <a href="#">Help Center</a>
+            </div>
+            <p>You received this email because you registered as a provider on Alabastar.</p>
+            <p>© 2025 Alabastar. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

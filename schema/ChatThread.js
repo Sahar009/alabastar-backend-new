@@ -35,3 +35,4 @@ const ChatThread = sequelize.define('ChatThread', {
 export default ChatThread;
 
 
+

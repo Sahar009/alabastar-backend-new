@@ -55,3 +55,4 @@ const SupportTicket = sequelize.define('SupportTicket', {
 export default SupportTicket;
 
 
+

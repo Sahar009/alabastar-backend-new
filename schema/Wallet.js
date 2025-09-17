@@ -33,3 +33,4 @@ const Wallet = sequelize.define('Wallet', {
 export default Wallet;
 
 
+

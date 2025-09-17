@@ -60,3 +60,4 @@ const Payment = sequelize.define('Payment', {
 export default Payment;
 
 
+

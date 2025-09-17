@@ -38,3 +38,4 @@ const NotificationPreference = sequelize.define('NotificationPreference', {
 export default NotificationPreference;
 
 
+

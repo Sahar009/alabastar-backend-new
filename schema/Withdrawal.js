@@ -50,3 +50,4 @@ const Withdrawal = sequelize.define('Withdrawal', {
 export default Withdrawal;
 
 
+

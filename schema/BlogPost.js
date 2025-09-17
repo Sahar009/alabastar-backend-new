@@ -50,3 +50,4 @@ const BlogPost = sequelize.define('BlogPost', {
 export default BlogPost;
 
 
+

@@ -22,6 +22,10 @@ const User = sequelize.define('User', {
     allowNull: true,
     unique: true
   },
+  alternativePhone: {
+    type: DataTypes.STRING(32),
+    allowNull: true
+  },
   passwordHash: {
     type: DataTypes.STRING(255),
     allowNull: true
@@ -53,6 +57,16 @@ const User = sequelize.define('User', {
   lastLoginAt: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  provider: {
+    type: DataTypes.ENUM('email', 'google', 'firebase'),
+    allowNull: false,
+    defaultValue: 'email'
+  },
+  firebaseUid: {
+    type: DataTypes.STRING(128),
+    allowNull: true,
+    unique: true
   }
 }, {
   timestamps: true,
@@ -60,10 +74,13 @@ const User = sequelize.define('User', {
   indexes: [
     { unique: true, fields: ['email'] },
     { unique: true, fields: ['phone'] },
-    { fields: ['role'] }
+    { fields: ['role'] },
+    { fields: ['alternativePhone'] },
+    { unique: true, fields: ['firebaseUid'] }
   ]
 });
 
 export default User;
+
 
 

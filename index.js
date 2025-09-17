@@ -6,7 +6,7 @@ import { specs, swaggerUi } from './config/swagger.js';
 import router from './routes/index.js';
 import { connectToDB } from './database/db.js';
 import { config } from './config/config.js';
-import { initializeFirebase } from './config/firebase.js';
+import initializeFirebase from './config/firebase.js';
 import './schema/index.js';
 
 const app = express();

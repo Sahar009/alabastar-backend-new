@@ -27,3 +27,4 @@ const SavedProvider = sequelize.define('SavedProvider', {
 export default SavedProvider;
 
 
+

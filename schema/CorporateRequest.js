@@ -48,3 +48,4 @@ const CorporateRequest = sequelize.define('CorporateRequest', {
 export default CorporateRequest;
 
 
+

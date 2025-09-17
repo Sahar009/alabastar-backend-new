@@ -1,4 +1,5 @@
 import User from './User.js';
+import Customer from './Customer.js';
 import ProviderProfile from './ProviderProfile.js';
 import ServiceCategory from './ServiceCategory.js';
 import Service from './Service.js';
@@ -29,6 +30,9 @@ import CorporateRequest from './CorporateRequest.js';
 import ContactMessage from './ContactMessage.js';
 
 // Associations
+User.hasOne(Customer, { foreignKey: 'userId', as: 'customer' });
+Customer.belongsTo(User, { foreignKey: 'userId' });
+
 User.hasOne(ProviderProfile, { foreignKey: 'userId' });
 ProviderProfile.belongsTo(User, { foreignKey: 'userId' });
 
@@ -113,6 +117,7 @@ Withdrawal.belongsTo(User, { foreignKey: 'userId' });
 
 export {
   User,
+  Customer,
   ProviderProfile,
   ServiceCategory,
   Service,

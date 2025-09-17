@@ -45,3 +45,4 @@ const Dispute = sequelize.define('Dispute', {
 export default Dispute;
 
 
+

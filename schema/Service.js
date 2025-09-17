@@ -56,3 +56,4 @@ const Service = sequelize.define('Service', {
 export default Service;
 
 
+

@@ -50,3 +50,4 @@ const ProviderSubscription = sequelize.define('ProviderSubscription', {
 export default ProviderSubscription;
 
 
+

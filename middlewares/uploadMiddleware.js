@@ -31,7 +31,7 @@ const upload = multer({
   fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 2 // Maximum 2 files (document + thumbnail)
+    files: 5 // Maximum 5 files for provider documents
   }
 });
 
@@ -47,6 +47,11 @@ export const uploadKycDocuments = upload.fields([
  * Middleware for uploading single document
  */
 export const uploadSingleDocument = upload.single('document');
+
+/**
+ * Middleware for uploading multiple provider documents
+ */
+export const uploadProviderDocuments = upload.array('documents', 5);
 
 /**
  * Process uploaded files and upload to Cloudinary

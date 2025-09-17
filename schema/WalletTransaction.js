@@ -48,3 +48,4 @@ const WalletTransaction = sequelize.define('WalletTransaction', {
 export default WalletTransaction;
 
 
+

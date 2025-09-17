@@ -46,3 +46,4 @@ const ChatMessage = sequelize.define('ChatMessage', {
 export default ChatMessage;
 
 
+

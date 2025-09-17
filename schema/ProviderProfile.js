@@ -88,3 +88,4 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
 export default ProviderProfile;
 
 
+

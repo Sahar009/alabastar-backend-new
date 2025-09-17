@@ -12,8 +12,12 @@ const __dirname = path.dirname(__filename);
 
 
 
-export const messageHandler = (message, success, statusCode, data) => {
-  return { message, success, statusCode, data }
+export const messageHandler = (res, statusCode, message, data = null) => {
+  return res.status(statusCode).json({
+    success: statusCode >= 200 && statusCode < 300,
+    message,
+    data
+  });
 }
 
 export const hashPassword = async (password) => {

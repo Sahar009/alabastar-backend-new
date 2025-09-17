@@ -55,3 +55,4 @@ const Coupon = sequelize.define('Coupon', {
 export default Coupon;
 
 
+

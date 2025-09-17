@@ -41,3 +41,4 @@ const ProviderDocument = sequelize.define('ProviderDocument', {
 export default ProviderDocument;
 
 
+

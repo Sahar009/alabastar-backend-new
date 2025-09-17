@@ -57,3 +57,4 @@ const Address = sequelize.define('Address', {
 export default Address;
 
 
+

@@ -44,3 +44,4 @@ const ContactMessage = sequelize.define('ContactMessage', {
 export default ContactMessage;
 
 
+

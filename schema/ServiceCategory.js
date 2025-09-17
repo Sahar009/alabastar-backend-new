@@ -38,3 +38,4 @@ const ServiceCategory = sequelize.define('ServiceCategory', {
 export default ServiceCategory;
 
 
+

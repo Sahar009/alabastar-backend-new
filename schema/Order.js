@@ -45,3 +45,4 @@ const Order = sequelize.define('Order', {
 export default Order;
 
 
+

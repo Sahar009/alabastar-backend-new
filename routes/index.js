@@ -1,11 +1,23 @@
 import express from 'express';
 import newsletterRoutes from './newsletterRoutes.js';
+import providerRoutes from './providerRoutes.js';
+import locationRoutes from './locationRoutes.js';
+import authRoutes from './authRoutes.js';
 
 const router = (app) => {
   // API routes
 
+  // Auth routes
+  app.use('/api/auth', authRoutes);
+  
   // Newsletter routes
   app.use('/api/newsletter', newsletterRoutes);
+  
+  // Provider routes
+  app.use('/api/providers', providerRoutes);
+  
+  // Location routes
+  app.use('/api/location', locationRoutes);
 
   app.get('/api/health', (req, res) => {
     res.status(200).json({
