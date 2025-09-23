@@ -10,7 +10,7 @@ import initializeFirebase from './config/firebase.js';
 import './schema/index.js';
 
 const app = express();
-const PORT = process.env.PORT || 8000; // Changed to match your current port
+const PORT = process.env.PORT || 5000; 
 
 app.use(helmet());
 

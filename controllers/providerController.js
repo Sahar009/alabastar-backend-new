@@ -157,6 +157,20 @@ class ProviderController {
       return messageHandler(res, BAD_REQUEST, error.message);
     }
   }
+
+  async getProviderServices(req, res) {
+    try {
+      const { providerId } = req.params;
+      if (!providerId) {
+        return messageHandler(res, BAD_REQUEST, 'Provider ID is required');
+      }
+      const services = await providerService.getProviderServices(providerId);
+      return messageHandler(res, SUCCESS, 'Provider services retrieved successfully', { services });
+    } catch (error) {
+      console.error('Get provider services error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
 }
 
 export default new ProviderController();

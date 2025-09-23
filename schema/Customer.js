@@ -58,3 +58,9 @@ const Customer = sequelize.define('Customer', {
 });
 
 export default Customer;
+
+
+
+
+
+

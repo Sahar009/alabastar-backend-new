@@ -3,6 +3,7 @@ import newsletterRoutes from './newsletterRoutes.js';
 import providerRoutes from './providerRoutes.js';
 import locationRoutes from './locationRoutes.js';
 import authRoutes from './authRoutes.js';
+import bookingRoutes from './bookingRoutes.js';
 
 const router = (app) => {
   // API routes
@@ -18,6 +19,9 @@ const router = (app) => {
   
   // Location routes
   app.use('/api/location', locationRoutes);
+  
+  // Booking routes
+  app.use('/api/bookings', bookingRoutes);
 
   app.get('/api/health', (req, res) => {
     res.status(200).json({

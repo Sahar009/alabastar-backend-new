@@ -1,7 +1,9 @@
 import { User, ProviderProfile, ProviderDocument } from '../schema/index.js';
+import { Service } from '../schema/index.js';
 import { sendEmail } from '../modules/notifications/email.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { Op } from 'sequelize';
 
 class ProviderService {
   async registerProvider(providerData) {
@@ -223,6 +225,19 @@ class ProviderService {
       totalPages: Math.ceil(providers.count / limit),
       currentPage: page
     };
+  }
+
+  async getProviderServices(providerProfileId) {
+    const services = await Service.findAll({
+      where: {
+        providerId: providerProfileId,
+        isActive: true,
+      },
+      order: [['createdAt', 'DESC']],
+      attributes: ['id', 'title', 'description', 'pricingType', 'basePrice', 'isActive']
+    });
+
+    return services;
   }
 
   async sendWelcomeEmail(email, fullName) {

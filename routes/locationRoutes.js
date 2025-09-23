@@ -10,3 +10,9 @@ router.get('/search', locationController.searchLocation);
 router.get('/reverse', locationController.reverseGeocode);
 
 export default router;
+
+
+
+
+
+

@@ -19,6 +19,9 @@ router.get('/category/:category', providerController.getProvidersByCategory);
 // Search providers
 router.get('/search', providerController.searchProviders);
 
+// Get provider's active services (by provider profile id)
+router.get('/:providerId/services', providerController.getProviderServices);
+
 // Upload provider documents
 router.post('/documents/upload', uploadSingleDocument, processUploadedFiles, handleUploadError, (req, res) => {
   try {
