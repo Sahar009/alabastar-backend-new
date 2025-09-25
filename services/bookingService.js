@@ -1,4 +1,5 @@
 import { Booking, User, Service, ProviderProfile } from '../schema/index.js';
+import { sendEmail } from '../modules/notifications/email.js';
 import { Op } from 'sequelize';
 
 export const createBooking = async (bookingData) => {
@@ -56,7 +57,7 @@ export const createBooking = async (bookingData) => {
     // Check for conflicting bookings
     const conflictingBooking = await Booking.findOne({
       where: {
-        providerId: providerId,
+        providerId: providerProfileId,
         scheduledAt: {
           [Op.between]: [
             new Date(new Date(scheduledAt).getTime() - 2 * 60 * 60 * 1000), // 2 hours before
@@ -64,7 +65,7 @@ export const createBooking = async (bookingData) => {
           ]
         },
         status: {
-          [Op.in]: ['requested', 'accepted', 'in_progress']
+          [Op.in]: ['accepted', 'in_progress']
         }
       }
     });
@@ -76,7 +77,7 @@ export const createBooking = async (bookingData) => {
     // Create booking
     const booking = await Booking.create({
       userId,
-      providerId, // bookings table expects provider userId
+      providerId: providerProfileId, // store provider profile id per FK
       serviceId,
       scheduledAt: new Date(scheduledAt),
       locationAddress,
@@ -97,9 +98,9 @@ export const createBooking = async (bookingData) => {
           attributes: ['id', 'fullName', 'email', 'phone']
         },
         {
-          model: User,
-          as: 'provider',
-          attributes: ['id', 'fullName', 'email', 'phone']
+          model: ProviderProfile,
+          as: 'providerProfile',
+          include: [{ model: User, attributes: ['id', 'fullName', 'email', 'phone'] }]
         },
         {
           model: Service,
@@ -108,6 +109,34 @@ export const createBooking = async (bookingData) => {
         }
       ]
     });
+
+    // Fire-and-forget email notifications (do not block booking response)
+    (async () => {
+      try {
+        const providerEmail = bookingWithDetails?.providerProfile?.User?.email;
+        const customerEmail = bookingWithDetails?.customer?.email;
+        const serviceTitle = bookingWithDetails?.service?.title || 'Service';
+        const scheduled = new Date(bookingWithDetails?.scheduledAt).toLocaleString();
+
+        if (providerEmail) {
+          await sendEmail(
+            providerEmail,
+            `New booking request: ${serviceTitle}`,
+            `You have a new booking request for ${serviceTitle} on ${scheduled}. Please log in to view details and accept.`
+          );
+        }
+
+        if (customerEmail) {
+          await sendEmail(
+            customerEmail,
+            'Booking confirmation',
+            `Your booking for ${serviceTitle} on ${scheduled} has been created. We will notify you when the provider confirms.`
+          );
+        }
+      } catch (e) {
+        console.warn('[Booking] Notification email failed:', e?.message || e);
+      }
+    })();
 
     return { success: true, message: 'Booking created successfully', statusCode: 201, data: bookingWithDetails };
 
@@ -127,31 +156,32 @@ export const getBookings = async (userId, userType = 'customer', filters = {}) =
       endDate
     } = filters;
 
-    const whereClause = {};
-    const includeClause = [
-      {
-        model: User,
-        as: 'customer',
-        attributes: ['id', 'fullName', 'email', 'phone']
-      },
-      {
-        model: User,
-        as: 'provider',
-        attributes: ['id', 'fullName', 'email', 'phone']
-      },
-      {
-        model: Service,
-        as: 'service',
-        attributes: ['id', 'title', 'description', 'pricingType', 'basePrice']
-      }
-    ];
+  const whereClause = {};
+  const includeClause = [
+    {
+      model: User,
+      as: 'customer',
+      attributes: ['id', 'fullName', 'email', 'phone']
+    },
+    {
+      model: ProviderProfile,
+      as: 'providerProfile',
+      include: [{ model: User, attributes: ['id', 'fullName', 'email', 'phone'] }]
+    },
+    {
+      model: Service,
+      as: 'service',
+      attributes: ['id', 'title', 'description', 'pricingType', 'basePrice']
+    }
+  ];
 
     // Filter by user type
     if (userType === 'customer') {
       whereClause.userId = userId;
-    } else if (userType === 'provider') {
-      whereClause.providerId = userId;
-    }
+  } else if (userType === 'provider') {
+    // When provider views, they pass their provider profile id ideally; if a user id is passed, map externally.
+    whereClause.providerId = userId;
+  }
 
     // Additional filters
     if (status) {

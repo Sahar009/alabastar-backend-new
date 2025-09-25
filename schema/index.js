@@ -43,10 +43,10 @@ ProviderProfile.hasMany(Service, { foreignKey: 'providerId' });
 Service.belongsTo(ProviderProfile, { foreignKey: 'providerId' });
 
 User.hasMany(Booking, { foreignKey: 'userId', as: 'CustomerBookings' });
-User.hasMany(Booking, { foreignKey: 'providerId', as: 'ProviderBookings' });
+ProviderProfile.hasMany(Booking, { foreignKey: 'providerId', as: 'ProviderBookings' });
 Service.hasMany(Booking, { foreignKey: 'serviceId' });
 Booking.belongsTo(User, { foreignKey: 'userId', as: 'customer' });
-Booking.belongsTo(User, { foreignKey: 'providerId', as: 'provider' });
+Booking.belongsTo(ProviderProfile, { foreignKey: 'providerId', as: 'providerProfile' });
 Booking.belongsTo(Service, { foreignKey: 'serviceId', as: 'service' });
 
 Booking.hasMany(Payment, { foreignKey: 'bookingId' });

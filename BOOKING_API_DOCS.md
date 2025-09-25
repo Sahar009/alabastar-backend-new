@@ -346,3 +346,4 @@ cancelled ← cancelled ← cancelled
    - All endpoints require valid JWT token
    - Users can only access their own bookings
    - Providers can only access bookings for their services
+

@@ -105,3 +105,4 @@ async function testBookingEndpoints() {
 
 // Run tests
 testBookingEndpoints();
+

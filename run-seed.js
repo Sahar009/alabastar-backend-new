@@ -12,3 +12,4 @@ seedProviders()
     console.error('❌ Database seeding failed:', error);
     process.exit(1);
   });
+

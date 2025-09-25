@@ -37,3 +37,4 @@ router.patch('/:id/cancel', cancelBookingController);
 router.get('/provider/:providerId/availability', getProviderAvailabilityController);
 
 export default router;
+
