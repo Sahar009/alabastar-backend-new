@@ -64,8 +64,33 @@ export const processUploadedFiles = async (req, res, next) => {
 
     const uploadResults = {};
 
-    // Handle multiple files (document + thumbnail)
-    if (req.files) {
+    // Handle multiple files from upload.array() - files are in req.files as array
+    if (req.files && Array.isArray(req.files)) {
+      const documents = [];
+      for (const file of req.files) {
+        const uploadOptions = {
+          folder: 'awari-kyc/documents',
+          resource_type: file.mimetype.startsWith('image/') ? 'image' : 'raw'
+        };
+
+        const result = await uploadToCloudinary(file.buffer, uploadOptions);
+        
+        if (result.success) {
+          documents.push({
+            public_id: result.data.public_id,
+            secure_url: result.data.secure_url,
+            format: result.data.format,
+            bytes: result.data.bytes
+          });
+        } else {
+          throw new Error(`Failed to upload document: ${result.error}`);
+        }
+      }
+      uploadResults.documents = documents;
+    }
+
+    // Handle multiple files (document + thumbnail) - files are in req.files as object
+    if (req.files && !Array.isArray(req.files)) {
       for (const [fieldName, files] of Object.entries(req.files)) {
         if (files && files.length > 0) {
           const file = files[0];

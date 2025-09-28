@@ -19,20 +19,8 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
     type: DataTypes.JSON,
     allowNull: true
   },
-  yearsOfExperience: {
-    type: DataTypes.INTEGER,
-    allowNull: true
-  },
   bio: {
     type: DataTypes.TEXT,
-    allowNull: true
-  },
-  hourlyRate: {
-    type: DataTypes.DECIMAL(10,2),
-    allowNull: true
-  },
-  startingPrice: {
-    type: DataTypes.DECIMAL(10,2),
     allowNull: true
   },
   verificationStatus: {
@@ -86,6 +74,7 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
 });
 
 export default ProviderProfile;
+
 
 
 

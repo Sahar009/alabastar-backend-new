@@ -1,11 +1,37 @@
 import { User, ProviderProfile, ProviderDocument } from '../schema/index.js';
 import { Service } from '../schema/index.js';
 import { sendEmail } from '../modules/notifications/email.js';
+import { generateToken } from '../utils/index.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Op } from 'sequelize';
 
 class ProviderService {
+  // Normalize Nigerian phone numbers to international format
+  normalizePhoneNumber(phone) {
+    if (!phone) return phone;
+    
+    const cleanPhone = phone.replace(/\s/g, '');
+    
+    // If it starts with 0, replace with +234
+    if (cleanPhone.startsWith('0')) {
+      return '+234' + cleanPhone.substring(1);
+    }
+    
+    // If it starts with 234, add +
+    if (cleanPhone.startsWith('234')) {
+      return '+' + cleanPhone;
+    }
+    
+    // If it already has +, return as is
+    if (cleanPhone.startsWith('+')) {
+      return cleanPhone;
+    }
+    
+    // Default: assume it's a local number and add +234
+    return '+234' + cleanPhone;
+  }
+
   async registerProvider(providerData) {
     const {
       // User data
@@ -18,10 +44,7 @@ class ProviderService {
       // Provider profile data
       category,
       subcategories,
-      yearsOfExperience,
       bio,
-      hourlyRate,
-      startingPrice,
       locationCity,
       locationState,
       latitude,
@@ -53,8 +76,8 @@ class ProviderService {
     const user = await User.create({
       fullName,
       email,
-      phone,
-      alternativePhone,
+      phone: this.normalizePhoneNumber(phone),
+      alternativePhone: this.normalizePhoneNumber(alternativePhone),
       passwordHash,
       role: 'provider',
       status: 'active'
@@ -65,10 +88,7 @@ class ProviderService {
       userId: user.id,
       category,
       subcategories: subcategories || [],
-      yearsOfExperience,
       bio,
-      hourlyRate,
-      startingPrice,
       locationCity,
       locationState,
       latitude,
@@ -99,6 +119,14 @@ class ProviderService {
       console.error('Error sending welcome email:', error);
     }
 
+    // Generate JWT token for the new user
+    const tokenPayload = {
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    };
+    const token = generateToken(tokenPayload, '7d');
+
     return {
       user: {
         id: user.id,
@@ -113,15 +141,13 @@ class ProviderService {
         id: providerProfile.id,
         category: providerProfile.category,
         subcategories: providerProfile.subcategories,
-        yearsOfExperience: providerProfile.yearsOfExperience,
         bio: providerProfile.bio,
-        hourlyRate: providerProfile.hourlyRate,
-        startingPrice: providerProfile.startingPrice,
         locationCity: providerProfile.locationCity,
         locationState: providerProfile.locationState,
         verificationStatus: providerProfile.verificationStatus
       },
-      documents: createdDocuments
+      documents: createdDocuments,
+      token: token
     };
   }
 
@@ -238,6 +264,37 @@ class ProviderService {
     });
 
     return services;
+  }
+
+  async getPopularSubcategories(category, limit = 10) {
+    try {
+      const providers = await ProviderProfile.findAll({
+        where: { 
+          category,
+          verificationStatus: 'verified'
+        },
+        attributes: ['subcategories']
+      });
+
+      // Count subcategory occurrences
+      const subcategoryCounts = {};
+      providers.forEach(provider => {
+        if (provider.subcategories && Array.isArray(provider.subcategories)) {
+          provider.subcategories.forEach(sub => {
+            subcategoryCounts[sub] = (subcategoryCounts[sub] || 0) + 1;
+          });
+        }
+      });
+
+      // Sort by count and return top subcategories
+      return Object.entries(subcategoryCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, limit)
+        .map(([subcategory]) => subcategory);
+    } catch (error) {
+      console.error('Error getting popular subcategories:', error);
+      return [];
+    }
   }
 
   async sendWelcomeEmail(email, fullName) {

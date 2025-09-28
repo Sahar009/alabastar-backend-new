@@ -1,6 +1,6 @@
 import express from 'express';
 import providerController from '../controllers/providerController.js';
-import { uploadSingleDocument, processUploadedFiles, handleUploadError } from '../middlewares/uploadMiddleware.js';
+import { uploadProviderDocuments, processUploadedFiles, handleUploadError } from '../middlewares/uploadMiddleware.js';
 
 const router = express.Router();
 
@@ -22,29 +22,32 @@ router.get('/search', providerController.searchProviders);
 // Get provider's active services (by provider profile id)
 router.get('/:providerId/services', providerController.getProviderServices);
 
+// Get popular subcategories for a category
+router.get('/subcategories/:category', providerController.getPopularSubcategories);
+
 // Upload provider documents
-router.post('/documents/upload', uploadSingleDocument, processUploadedFiles, handleUploadError, (req, res) => {
+router.post('/documents/upload', uploadProviderDocuments, processUploadedFiles, handleUploadError, (req, res) => {
   try {
-    if (!req.uploadResults || !req.uploadResults.document) {
+    if (!req.uploadResults || !req.uploadResults.documents) {
       return res.status(400).json({
         success: false,
         message: 'No files uploaded'
       });
     }
 
-    const uploadedFile = {
-      filename: req.uploadResults.document.public_id,
-      originalName: req.file.originalname,
-      url: req.uploadResults.document.secure_url,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      publicId: req.uploadResults.document.public_id
-    };
+    const uploadedFiles = req.files.map((file, index) => ({
+      filename: req.uploadResults.documents[index].public_id,
+      originalName: file.originalname,
+      url: req.uploadResults.documents[index].secure_url,
+      size: file.size,
+      mimetype: file.mimetype,
+      publicId: req.uploadResults.documents[index].public_id
+    }));
 
     res.status(200).json({
       success: true,
-      message: 'File uploaded successfully',
-      file: uploadedFile
+      message: 'Files uploaded successfully',
+      files: uploadedFiles
     });
   } catch (error) {
     console.error('File upload error:', error);

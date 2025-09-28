@@ -29,11 +29,12 @@ class AuthController {
         return messageHandler(res, BAD_REQUEST, 'Password must be at least 8 characters long');
       }
 
-      // Phone validation (optional)
-      if (phone) {
-        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-        if (!phoneRegex.test(phone.replace(/\s/g, ''))) {
-          return messageHandler(res, BAD_REQUEST, 'Invalid phone number format');
+      // Phone validation (optional) - Nigerian format
+      if (phone && phone.trim()) {
+        const cleanPhone = phone.replace(/\s/g, '');
+        const phoneRegex = /^(\+?234|0)?[789][01]\d{8}$/;
+        if (!phoneRegex.test(cleanPhone)) {
+          return messageHandler(res, BAD_REQUEST, 'Invalid phone number format. Please use Nigerian format: 08101126131 or +2348101126131');
         }
       }
 

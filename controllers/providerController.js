@@ -28,17 +28,19 @@ class ProviderController {
 
       // Validate phone format if provided
       if (providerData.phone) {
-        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-        if (!phoneRegex.test(providerData.phone.replace(/\s/g, ''))) {
-          return messageHandler(res, BAD_REQUEST, 'Invalid phone number format');
+        const cleanPhone = providerData.phone.replace(/\s/g, '');
+        const phoneRegex = /^(\+?234|0)?[789][01]\d{8}$/;
+        if (!phoneRegex.test(cleanPhone)) {
+          return messageHandler(res, BAD_REQUEST, 'Invalid phone number format. Please use Nigerian format: 08101126131 or +2348101126131');
         }
       }
 
       // Validate alternative phone format if provided
       if (providerData.alternativePhone) {
-        const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-        if (!phoneRegex.test(providerData.alternativePhone.replace(/\s/g, ''))) {
-          return messageHandler(res, BAD_REQUEST, 'Invalid alternative phone number format');
+        const cleanPhone = providerData.alternativePhone.replace(/\s/g, '');
+        const phoneRegex = /^(\+?234|0)?[789][01]\d{8}$/;
+        if (!phoneRegex.test(cleanPhone)) {
+          return messageHandler(res, BAD_REQUEST, 'Invalid alternative phone number format. Please use Nigerian format: 08101126131 or +2348101126131');
         }
       }
 
@@ -53,19 +55,6 @@ class ProviderController {
         return messageHandler(res, BAD_REQUEST, 'Invalid service category');
       }
 
-      // Validate hourly rate and starting price
-      if (providerData.hourlyRate && (providerData.hourlyRate < 0 || providerData.hourlyRate > 10000)) {
-        return messageHandler(res, BAD_REQUEST, 'Hourly rate must be between 0 and 10000');
-      }
-
-      if (providerData.startingPrice && (providerData.startingPrice < 0 || providerData.startingPrice > 10000)) {
-        return messageHandler(res, BAD_REQUEST, 'Starting price must be between 0 and 10000');
-      }
-
-      // Validate years of experience
-      if (providerData.yearsOfExperience && (providerData.yearsOfExperience < 0 || providerData.yearsOfExperience > 50)) {
-        return messageHandler(res, BAD_REQUEST, 'Years of experience must be between 0 and 50');
-      }
 
       const result = await providerService.registerProvider(providerData);
       
@@ -168,6 +157,24 @@ class ProviderController {
       return messageHandler(res, SUCCESS, 'Provider services retrieved successfully', { services });
     } catch (error) {
       console.error('Get provider services error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
+  async getPopularSubcategories(req, res) {
+    try {
+      const { category } = req.params;
+      const { limit = 10 } = req.query;
+      
+      if (!category) {
+        return messageHandler(res, BAD_REQUEST, 'Category is required');
+      }
+
+      const subcategories = await providerService.getPopularSubcategories(category, parseInt(limit));
+      
+      return messageHandler(res, SUCCESS, 'Popular subcategories retrieved successfully', { subcategories });
+    } catch (error) {
+      console.error('Get popular subcategories error:', error);
       return messageHandler(res, BAD_REQUEST, error.message);
     }
   }

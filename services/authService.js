@@ -24,10 +24,10 @@ class AuthService {
       throw new Error('User already exists with this email');
     }
 
-    // Check if user already exists by phone (if phone is provided)
-    if (phone) {
+    // Check if user already exists by phone (if phone is provided and not empty)
+    if (phone && phone.trim()) {
       const existingUserByPhone = await User.findOne({
-        where: { phone }
+        where: { phone: phone.trim() }
       });
 
       if (existingUserByPhone) {
@@ -43,7 +43,7 @@ class AuthService {
     const user = await User.create({
       fullName,
       email,
-      phone,
+      phone: phone && phone.trim() ? phone.trim() : null,
       passwordHash,
       role: 'customer',
       status: 'active',

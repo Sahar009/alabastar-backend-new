@@ -1,71 +1,216 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <title>Welcome to Alabastar</title>
-    <style>
-      body { margin:0; padding:0; background:#f6f8fb; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
-      table { border-collapse:collapse; }
-      img { border:0; line-height:100%; outline:none; text-decoration:none; display:block; }
-      .container { width:100%; background:#f6f8fb; padding:24px 0; }
-      .wrapper { width:100%; max-width:640px; margin:0 auto; background:#ffffff; border-radius:16px; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
-      .header { padding:24px; border-bottom:1px solid #f1f5f9; }
-      .brand { font: 700 18px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#0f172a; letter-spacing:0.3px; display:flex; align-items:center; }
-      .brand span { margin-left:10px; }
-      .hero { padding: 0 24px; }
-      .badge { display:inline-block; padding:6px 10px; border-radius:999px; border:1px solid #e5e7eb; color:#334155; font:500 12px/1 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-      .title { font:800 24px/1.25 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#0f172a; margin:12px 0 8px; }
-      .text { font:400 14px/1.65 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; color:#334155; margin:0; }
-      .spacer { height:16px; line-height:16px; }
-      .cta { display:inline-block; background: linear-gradient(90deg, #2563EB, #14B8A6); color:#ffffff; padding:12px 16px; border-radius:12px; font:700 14px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; text-decoration:none; }
-      .divider { height:1px; background:#f1f5f9; margin:24px 0; }
-      .footer { padding:16px 24px; color:#64748b; font:400 12px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
-      .link { color:#2563eb; text-decoration:none; }
-    </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Alabastar Newsletter</title>
   </head>
-  <body>
-    <table role="presentation" class="container" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td align="center" valign="top">
-          <table role="presentation" class="wrapper" cellpadding="0" cellspacing="0">
-            <tr>
-              <td class="header">
-                <div class="brand">
-                  <img src="<%= process.env.SITE_LOGO_URL || 'https://dummyimage.com/40x40/2563eb/ffffff&text=A' %>" width="32" height="32" style="border-radius:8px;">
-                  <span>Alabastar</span>
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="hero" valign="top">
-                <div class="spacer"></div>
-                <span class="badge">Newsletter</span>
-                <h1 class="title">Welcome, <%= email %>!</h1>
-                <p class="text">Thanks for subscribing to Alabastar. You'll receive helpful tips, provider highlights, and exclusive offers. We’re excited to help you book trusted services faster and safer.</p>
-                <div class="spacer"></div>
-                <% if (unsubscribeToken && unsubscribeUrl) { %>
-                  <a class="cta" href="<%= unsubscribeUrl %>" target="_blank" rel="noopener">Manage subscription</a>
-                <% } %>
-                <div class="spacer"></div>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <div class="divider"></div>
-              </td>
-            </tr>
-            <tr>
-              <td class="footer">
-                If you didn’t subscribe, you can <a class="link" href="<%= unsubscribeUrl %>" target="_blank" rel="noopener">unsubscribe</a> anytime.
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background: #2563eb;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 10px;
+    "
+  >
+    <div
+      style="
+        margin: 20px auto;
+        padding: 40px 20px;
+        max-width: 600px;
+        background: #fffdf9;
+        border: 1px solid #e6f2ff;
+        border-radius: 24px;
+      "
+    >
+      <!-- Logo -->
+      <div style="width: 100%; margin: 0 auto 40px">
+        <div
+          style="
+            width: 128px;
+            height: 128px;
+            margin: 0 auto 40px;
+            background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 2px;
+          "
+        >
+          ALABASTAR
+        </div>
+      </div>
+
+      <!-- Main Image/Illustration -->
+      <div
+        style="
+          width: 261px;
+          height: 200px;
+          margin: 0 auto 40px;
+          background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 48px;
+        "
+      >
+        📧
+      </div>
+
+      <!-- Content -->
+      <div style="display: inline-block; padding: 6px 12px; border-radius: 20px; border: 1px solid #2563eb; color: #2563eb; font-size: 12px; font-weight: 500; margin-bottom: 20px;">
+        Newsletter
+      </div>
+
+      <h1 style="color: #2563eb; font-size: 32px; margin: 0 0 24px">
+        Welcome, <%= email %>!
+      </h1>
+
+      <p
+        style="
+          color: #484848;
+          font-size: 16px;
+          margin: 0 auto 24px;
+          max-width: 500px;
+        "
+      >
+        Thanks for subscribing to Alabastar. You'll receive helpful tips, provider highlights, and exclusive offers. 
+        We're excited to help you book trusted services faster and safer.
+      </p>
+
+      <!-- Success Message -->
+      <div
+        style="
+          color: #2563eb;
+          font-size: 18px;
+          margin: 34px 0;
+          font-weight: 500;
+        "
+      >
+        Stay tuned for amazing content and exclusive deals!
+      </div>
+
+      <!-- CTA Button -->
+      <% if (unsubscribeToken && unsubscribeUrl) { %>
+      <div style="margin: 40px 0; text-align: center;">
+        <a 
+          href="<%= unsubscribeUrl %>"
+          style="
+            display: inline-block;
+            background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
+            color: white;
+            text-decoration: none;
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          "
+        >
+          Manage Subscription
+        </a>
+      </div>
+      <% } %>
+
+      <!-- Footer -->
+      <div
+        style="margin: 40px -20px 0; padding: 37px 20px; background: #ffffff"
+      >
+        <p style="color: #000000; font-size: 14px; margin: 0 0 29px">
+          Join our evergrowing unstoppable community
+        </p>
+
+        <!-- Social Icons -->
+        <div style="margin: 0 0 29px">
+          <a href="https://www.youtube.com" style="margin: 0 4px;">
+            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">YT</span>
+          </a>
+          <a href="https://www.linkedin.com" style="margin: 0 4px;">
+            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">LI</span>
+          </a>
+          <a href="https://www.facebook.com" style="margin: 0 4px;">
+            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">FB</span>
+          </a>
+          <a href="https://www.instagram.com" style="margin: 0 4px;">
+            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">IG</span>
+          </a>
+          <a href="https://www.twitter.com" style="margin: 0 4px;">
+            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">TW</span>
+          </a>
+        </div>
+
+        <p style="color: #000000; font-size: 14px; margin: 20px 0">
+          Get the App
+        </p>
+
+        <!-- App Store Buttons -->
+        <div style="margin: 20px 0">
+          <a href="https://www.apple.com" style="text-decoration: none;">
+            <div
+              style="
+                display: inline-block;
+                margin: 5px 10px;
+                border: 1px solid #2563eb;
+                border-radius: 20px;
+                padding: 10px;
+              "
+            >
+              <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 4px; color: white; text-align: center; line-height: 24px; font-size: 12px; margin-right: 10px;">🍎</span>
+              <div
+                style="
+                  display: inline-block;
+                  color: #2563eb;
+                  text-align: left;
+                  vertical-align: middle;
+                "
+              >
+                <div style="font-size: 12px">Download on the</div>
+                <div style="font-size: 16px">App store</div>
+              </div>
+            </div>
+          </a>
+
+          <a href="https://play.google.com" style="text-decoration: none;">
+            <div
+              style="
+                display: inline-block;
+                margin: 5px 10px;
+                border: 1px solid #2563eb;
+                border-radius: 20px;
+                padding: 10px;
+              "
+            >
+              <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 4px; color: white; text-align: center; line-height: 24px; font-size: 12px; margin-right: 10px;">📱</span>
+              <div
+                style="
+                  display: inline-block;
+                  color: #2563eb;
+                  text-align: left;
+                  vertical-align: middle;
+                "
+              >
+                <div style="font-size: 12px">Get it on</div>
+                <div style="font-size: 16px">Google play</div>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <p style="color: #000000; font-size: 14px; margin: 20px 0">
+          If you didn't subscribe, you can <a href="<%= unsubscribeUrl %>" style="color: #2563eb; text-decoration: none;">unsubscribe</a> anytime.
+          All rights reserved.
+        </p>
+      </div>
+    </div>
   </body>
-  </html>
+</html>
 
 
