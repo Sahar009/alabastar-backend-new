@@ -27,42 +27,55 @@
     >
       <!-- Logo -->
       <div style="width: 100%; margin: 0 auto 40px">
-        <div
-          style="
-            width: 128px;
-            height: 128px;
-            margin: 0 auto 40px;
-            background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 32px;
-            font-weight: bold;
-            letter-spacing: 2px;
-          "
-        >
-          ALABASTAR
-        </div>
+        <a href="<%= process.env.FRONTEND_URL || 'http://localhost:3000' %>" style="text-decoration: none;">
+          <div
+            style="
+              width: 128px;
+              height: 128px;
+              margin: 0 auto 40px;
+              background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 32px;
+              font-weight: bold;
+              letter-spacing: 2px;
+              transition: transform 0.2s ease;
+            "
+            onmouseover="this.style.transform='scale(1.05)'"
+            onmouseout="this.style.transform='scale(1)'"
+          >
+            ALABASTAR
+          </div>
+        </a>
       </div>
 
       <!-- Main Image/Illustration -->
       <div
         style="
-          width: 261px;
-          height: 200px;
+          width: 100%;
+          max-width: 400px;
           margin: 0 auto 40px;
-          background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
+          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
           border-radius: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: 48px;
+          padding: 20px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         "
       >
-        🚀
+        <img 
+          src="https://res.cloudinary.com/dezefv6xc/image/upload/v1759012743/undraw_welcoming_42an_betvtx.png" 
+          alt="Welcome to Alabastar as a Provider" 
+          style="
+            width: 100%;
+            height: auto;
+            max-width: 300px;
+            display: block;
+            margin: 0 auto;
+            border-radius: 8px;
+          "
+        />
       </div>
 
       <!-- Content -->
