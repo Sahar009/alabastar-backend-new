@@ -17,7 +17,7 @@ const Booking = sequelize.define('Booking', {
   },
   serviceId: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: true
   },
   scheduledAt: {
     type: DataTypes.DATE,

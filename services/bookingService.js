@@ -19,7 +19,7 @@ export const createBooking = async (bookingData) => {
     } = bookingData;
 
     // Validate required fields
-    if (!userId || !providerId || !serviceId || !scheduledAt || !totalAmount) {
+    if (!userId || !providerId || !scheduledAt || !totalAmount) {
       return { success: false, message: 'Missing required fields', statusCode: 400 };
     }
 
@@ -39,17 +39,20 @@ export const createBooking = async (bookingData) => {
 
     const providerProfileId = provider.id;
 
-    // Check if service exists and belongs to provider profile
-    const service = await Service.findOne({
-      where: {
-        id: serviceId,
-        providerId: providerProfileId,
-        isActive: true
-      }
-    });
+    // Check if service exists and belongs to provider profile (only if serviceId is provided)
+    let service = null;
+    if (serviceId) {
+      service = await Service.findOne({
+        where: {
+          id: serviceId,
+          providerId: providerProfileId,
+          isActive: true
+        }
+      });
 
-    if (!service) {
-      return { success: false, message: 'Service not found or not available', statusCode: 404 };
+      if (!service) {
+        return { success: false, message: 'Service not found or not available', statusCode: 404 };
+      }
     }
 
     // provider already resolved above
@@ -102,11 +105,11 @@ export const createBooking = async (bookingData) => {
           as: 'providerProfile',
           include: [{ model: User, attributes: ['id', 'fullName', 'email', 'phone'] }]
         },
-        {
+        ...(serviceId ? [{
           model: Service,
           as: 'service',
           attributes: ['id', 'title', 'description', 'pricingType', 'basePrice']
-        }
+        }] : [])
       ]
     });
 
@@ -115,7 +118,7 @@ export const createBooking = async (bookingData) => {
       try {
         const providerEmail = bookingWithDetails?.providerProfile?.User?.email;
         const customerEmail = bookingWithDetails?.customer?.email;
-        const serviceTitle = bookingWithDetails?.service?.title || 'Service';
+        const serviceTitle = bookingWithDetails?.service?.title || 'General Service';
         const scheduled = new Date(bookingWithDetails?.scheduledAt).toLocaleString();
 
         if (providerEmail) {
@@ -171,7 +174,8 @@ export const getBookings = async (userId, userType = 'customer', filters = {}) =
     {
       model: Service,
       as: 'service',
-      attributes: ['id', 'title', 'description', 'pricingType', 'basePrice']
+      attributes: ['id', 'title', 'description', 'pricingType', 'basePrice'],
+      required: false
     }
   ];
 
@@ -252,7 +256,8 @@ export const getBookingById = async (bookingId, userId, userType = 'customer') =
         {
           model: Service,
           as: 'service',
-          attributes: ['id', 'title', 'description', 'pricingType', 'basePrice']
+          attributes: ['id', 'title', 'description', 'pricingType', 'basePrice'],
+          required: false
         }
       ]
     });

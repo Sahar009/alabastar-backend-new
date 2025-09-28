@@ -25,7 +25,7 @@ Creates a new booking for a service.
 ```json
 {
   "providerId": "uuid",
-  "serviceId": "uuid", 
+  "serviceId": "uuid (optional)", 
   "scheduledAt": "2024-01-15T10:00:00Z",
   "locationAddress": "123 Main Street",
   "locationCity": "Lagos",
@@ -327,7 +327,7 @@ cancelled ← cancelled ← cancelled
 ## Business Rules
 
 1. **Booking Creation:**
-   - Service must exist and be active
+   - Service ID is optional (can be null for general bookings)
    - Provider must be available
    - No conflicting bookings within 2-hour window
    - Total amount must be positive
