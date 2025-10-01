@@ -1,6 +1,6 @@
 import express from 'express';
 import providerController from '../controllers/providerController.js';
-import { uploadProviderDocuments, processUploadedFiles, handleUploadError } from '../middlewares/uploadMiddleware.js';
+import { uploadProviderDocuments, uploadBrandImages, processUploadedFiles, handleUploadError } from '../middlewares/uploadMiddleware.js';
 
 const router = express.Router();
 
@@ -54,6 +54,39 @@ router.post('/documents/upload', uploadProviderDocuments, processUploadedFiles, 
     res.status(500).json({
       success: false,
       message: 'File upload failed'
+    });
+  }
+});
+
+// Upload brand images
+router.post('/brand-images/upload', uploadBrandImages, processUploadedFiles, handleUploadError, (req, res) => {
+  try {
+    if (!req.uploadResults || !req.uploadResults.documents) {
+      return res.status(400).json({
+        success: false,
+        message: 'No brand images uploaded'
+      });
+    }
+
+    const uploadedFiles = req.files.map((file, index) => ({
+      filename: req.uploadResults.documents[index].public_id,
+      originalName: file.originalname,
+      url: req.uploadResults.documents[index].secure_url,
+      size: file.size,
+      mimetype: file.mimetype,
+      publicId: req.uploadResults.documents[index].public_id
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: 'Brand images uploaded successfully',
+      files: uploadedFiles
+    });
+  } catch (error) {
+    console.error('Brand image upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Brand image upload failed'
     });
   }
 });

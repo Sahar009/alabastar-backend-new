@@ -11,6 +11,10 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
     type: DataTypes.UUID,
     allowNull: false
   },
+  businessName: {
+    type: DataTypes.STRING(200),
+    allowNull: false
+  },
   category: {
     type: DataTypes.STRING(100),
     allowNull: false

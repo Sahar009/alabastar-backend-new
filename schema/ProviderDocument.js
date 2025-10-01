@@ -12,7 +12,7 @@ const ProviderDocument = sequelize.define('ProviderDocument', {
     allowNull: false
   },
   type: {
-    type: DataTypes.ENUM('id_card', 'certificate', 'license', 'other'),
+    type: DataTypes.ENUM('id_card', 'certificate', 'license', 'brand_image', 'other'),
     allowNull: false
   },
   url: {
@@ -39,6 +39,11 @@ const ProviderDocument = sequelize.define('ProviderDocument', {
 });
 
 export default ProviderDocument;
+
+
+
+
+
 
 
 

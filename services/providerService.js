@@ -42,6 +42,7 @@ class ProviderService {
       password,
       
       // Provider profile data
+      businessName,
       category,
       subcategories,
       bio,
@@ -52,7 +53,8 @@ class ProviderService {
       portfolio,
       
       // Document data
-      documents
+      documents,
+      brandImages
     } = providerData;
 
     // Check if user already exists
@@ -86,6 +88,7 @@ class ProviderService {
     // Create provider profile
     const providerProfile = await ProviderProfile.create({
       userId: user.id,
+      businessName,
       category,
       subcategories: subcategories || [],
       bio,
@@ -109,6 +112,21 @@ class ProviderService {
           notes: doc.notes
         });
         createdDocuments.push(document);
+      }
+    }
+
+    // Create brand images
+    const createdBrandImages = [];
+    if (brandImages && brandImages.length > 0) {
+      for (const image of brandImages) {
+        const brandImage = await ProviderDocument.create({
+          providerId: providerProfile.id,
+          type: 'brand_image',
+          url: image.url,
+          status: 'approved', // Brand images are auto-approved
+          notes: image.notes || 'Brand image'
+        });
+        createdBrandImages.push(brandImage);
       }
     }
 
@@ -139,6 +157,7 @@ class ProviderService {
       },
       providerProfile: {
         id: providerProfile.id,
+        businessName: providerProfile.businessName,
         category: providerProfile.category,
         subcategories: providerProfile.subcategories,
         bio: providerProfile.bio,
@@ -147,6 +166,7 @@ class ProviderService {
         verificationStatus: providerProfile.verificationStatus
       },
       documents: createdDocuments,
+      brandImages: createdBrandImages,
       token: token
     };
   }

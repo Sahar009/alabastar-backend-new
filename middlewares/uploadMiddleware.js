@@ -54,6 +54,11 @@ export const uploadSingleDocument = upload.single('document');
 export const uploadProviderDocuments = upload.array('documents', 5);
 
 /**
+ * Middleware for uploading brand images
+ */
+export const uploadBrandImages = upload.array('brandImages', 10);
+
+/**
  * Process uploaded files and upload to Cloudinary
  */
 export const processUploadedFiles = async (req, res, next) => {
@@ -69,7 +74,7 @@ export const processUploadedFiles = async (req, res, next) => {
       const documents = [];
       for (const file of req.files) {
         const uploadOptions = {
-          folder: 'awari-kyc/documents',
+          folder: req.route?.path?.includes('brand-images') ? 'alabastar/brand-images' : 'alabastar/documents',
           resource_type: file.mimetype.startsWith('image/') ? 'image' : 'raw'
         };
 
