@@ -7,6 +7,9 @@ const router = express.Router();
 // Provider registration
 router.post('/register', providerController.registerProvider);
 
+// Initialize payment for registration (before provider registration)
+router.post('/initialize-payment', providerController.initializePaymentForRegistration);
+
 // Get provider profile
 router.get('/profile/:providerId', providerController.getProviderProfile);
 
@@ -18,6 +21,12 @@ router.get('/category/:category', providerController.getProvidersByCategory);
 
 // Search providers
 router.get('/search', providerController.searchProviders);
+
+// Get provider documents
+router.get('/:providerId/documents', providerController.getProviderDocuments);
+
+// Initialize provider payment
+router.post('/:providerId/initialize-payment', providerController.initializeProviderPayment);
 
 // Get provider's active services (by provider profile id)
 router.get('/:providerId/services', providerController.getProviderServices);

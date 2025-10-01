@@ -5,8 +5,52 @@ import { generateToken } from '../utils/index.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Op } from 'sequelize';
+import paystackService from '../providers/paystack/index.js';
 
 class ProviderService {
+  // Get provider registration fee (this should be configurable by admin)
+  getRegistrationFee() {
+    // For now, return a fixed amount. This should be fetched from admin settings
+    return process.env.PROVIDER_REGISTRATION_FEE || 5000; // Default 5000 NGN
+  }
+
+  // Initialize payment for provider registration
+  async initializeProviderPayment(providerData) {
+    return new Promise((resolve, reject) => {
+      const registrationFee = this.getRegistrationFee();
+      const reference = `provider_reg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const paymentData = {
+        email: providerData.email,
+        amount: registrationFee,
+        reference,
+        callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/provider/registration/success`,
+        provider_id: null, // Will be set after successful payment
+        business_name: providerData.businessName,
+        full_name: providerData.fullName,
+        phone: providerData.phone,
+        category: providerData.category,
+        registration_data: providerData // Store all registration data for later use
+      };
+
+      console.log('Initializing payment with data:', paymentData);
+      
+      paystackService.initializeTransaction(paymentData, (response) => {
+        console.log('Paystack response:', response);
+        if (response.success) {
+          resolve({
+            ...response.data,
+            registrationFee,
+            reference,
+            registrationData: providerData // Include registration data for frontend
+          });
+        } else {
+          reject(new Error(response.message || 'Failed to initialize payment'));
+        }
+      });
+    });
+  }
+
   // Normalize Nigerian phone numbers to international format
   normalizePhoneNumber(phone) {
     if (!phone) return phone;
@@ -97,7 +141,8 @@ class ProviderService {
       latitude,
       longitude,
       portfolio: portfolio || [],
-      verificationStatus: 'pending'
+      verificationStatus: 'pending',
+      paymentStatus: 'pending' // Add payment status
     });
 
     // Create provider documents
@@ -163,12 +208,44 @@ class ProviderService {
         bio: providerProfile.bio,
         locationCity: providerProfile.locationCity,
         locationState: providerProfile.locationState,
-        verificationStatus: providerProfile.verificationStatus
+        verificationStatus: providerProfile.verificationStatus,
+        paymentStatus: providerProfile.paymentStatus
       },
       documents: createdDocuments,
       brandImages: createdBrandImages,
       token: token
     };
+  }
+
+  // Initialize payment for existing provider
+  async initializeProviderRegistrationPayment(providerId) {
+    const provider = await ProviderProfile.findByPk(providerId, {
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'fullName', 'email', 'phone']
+        }
+      ]
+    });
+
+    if (!provider) {
+      throw new Error('Provider not found');
+    }
+
+    if (provider.paymentStatus === 'paid') {
+      throw new Error('Payment already completed');
+    }
+
+    const providerData = {
+      provider_id: provider.id,
+      email: provider.User.email,
+      businessName: provider.businessName,
+      fullName: provider.User.fullName,
+      phone: provider.User.phone,
+      category: provider.category
+    };
+
+    return await this.initializeProviderPayment(providerData);
   }
 
   async getProviderProfile(providerId) {
@@ -329,6 +406,26 @@ class ProviderService {
       console.log(`Provider welcome email sent to ${email}`);
     } catch (error) {
       console.error('Error sending provider welcome email:', error);
+    }
+  }
+
+  async getProviderDocuments(providerId, type = null) {
+    try {
+      const whereClause = { providerId };
+      if (type) {
+        whereClause.type = type;
+      }
+
+      const documents = await ProviderDocument.findAll({
+        where: whereClause,
+        attributes: ['id', 'type', 'url', 'status', 'notes', 'createdAt'],
+        order: [['createdAt', 'DESC']]
+      });
+
+      return documents;
+    } catch (error) {
+      console.error('Error fetching provider documents:', error);
+      throw error;
     }
   }
 }

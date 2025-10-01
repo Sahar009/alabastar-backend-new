@@ -1,5 +1,4 @@
 import { BAD_REQUEST, SUCCESS } from "../../constants/statusCode.js";
-import { messageHandler } from "../../utils/index.js";
 import axios from 'axios';
 
 
@@ -69,11 +68,54 @@ class PaystackService {
     }
 
     async initializeTransaction(data, callback) {
-            //implement
+        try {
+            const payload = {
+                email: data.email,
+                amount: data.amount * 100, // Convert to kobo (Paystack expects amount in kobo)
+                currency: "NGN",
+                reference: data.reference || `provider_reg_${Date.now()}`,
+                callback_url: data.callback_url || `${process.env.FRONTEND_URL}/provider/registration/success`,
+                metadata: {
+                    provider_id: data.provider_id,
+                    business_name: data.business_name,
+                    full_name: data.full_name,
+                    phone: data.phone,
+                    category: data.category,
+                    registration_type: 'provider_registration'
+                }
+            };
 
+            const response = await this.api.post('/transaction/initialize', payload);
+            return callback({
+                success: true,
+                message: "Transaction initialized successfully",
+                data: response.data.data
+            });
+        } catch (error) {
+            console.error("Error initializing transaction:", error.response?.data || error.message);
+            return callback({
+                success: false,
+                message: "Failed to initialize transaction",
+                data: null
+            });
+        }
     }
     async verifyTransaction(reference, callback) {
-      //implement
+        try {
+            const response = await this.api.get(`/transaction/verify/${reference}`);
+            return callback({
+                success: true,
+                message: "Transaction verified successfully",
+                data: response.data.data
+            });
+        } catch (error) {
+            console.error("Error verifying transaction:", error.response?.data || error.message);
+            return callback({
+                success: false,
+                message: "Failed to verify transaction",
+                data: null
+            });
+        }
     }
 
     async createTransferRecipient(data, callback) {
@@ -87,10 +129,18 @@ class PaystackService {
             };
 
             const response = await this.api.post('/transferrecipient', payload);
-            return callback(messageHandler("Transfer recipient created successfully", true, SUCCESS, response.data.data));
+            return callback({
+                success: true,
+                message: "Transfer recipient created successfully",
+                data: response.data.data
+            });
         } catch (error) {
             console.error("Error creating transfer recipient:", error.response?.data || error.message);
-            return callback(messageHandler("Failed to create transfer recipient", false, BAD_REQUEST));
+            return callback({
+                success: false,
+                message: "Failed to create transfer recipient",
+                data: null
+            });
         }
     }
 
@@ -102,10 +152,18 @@ class PaystackService {
     async getBanksList(callback) {
         try {
             const response = await this.api.get('/bank');
-            return callback(messageHandler("Banks list retrieved successfully", true, SUCCESS, response.data.data));
+            return callback({
+                success: true,
+                message: "Banks list retrieved successfully",
+                data: response.data.data
+            });
         } catch (error) {
             console.error("Error retrieving banks:", error.response?.data || error.message);
-            return callback(messageHandler("Failed to retrieve banks", false, BAD_REQUEST));
+            return callback({
+                success: false,
+                message: "Failed to retrieve banks",
+                data: null
+            });
         }
     }
 
@@ -114,10 +172,18 @@ class PaystackService {
             const response = await this.api.get(
                 `/bank/resolve?account_number=${data.accountNumber}&bank_code=${data.bankCode}`
             );
-            return callback(messageHandler("Account verified successfully", true, SUCCESS, response.data.data));
+            return callback({
+                success: true,
+                message: "Account verified successfully",
+                data: response.data.data
+            });
         } catch (error) {
             console.error("Error verifying account:", error.response?.data || error.message);
-            return callback(messageHandler("Failed to verify account", false, BAD_REQUEST));
+            return callback({
+                success: false,
+                message: "Failed to verify account",
+                data: null
+            });
         }
     }
 
@@ -132,10 +198,18 @@ class PaystackService {
                     paymentStatus: filters.paymentStatus
                 }
             });
-            return callback(messageHandler("Transactions list retrieved successfully", true, SUCCESS, response.data.data));
+            return callback({
+                success: true,
+                message: "Transactions list retrieved successfully",
+                data: response.data.data
+            });
         } catch (error) {
             console.error("Error retrieving transactions:", error.response?.data || error.message);
-            return callback(messageHandler("Failed to retrieve transactions", false, BAD_REQUEST));
+            return callback({
+                success: false,
+                message: "Failed to retrieve transactions",
+                data: null
+            });
         }
     }
 
@@ -154,21 +228,121 @@ class PaystackService {
                     console.log('Unhandled webhook event:', event);
             }
             
-            return callback(messageHandler("Webhook processed successfully", true, SUCCESS));
+            return callback({
+                success: true,
+                message: "Webhook processed successfully",
+                data: null
+            });
         } catch (error) {
             console.error("Webhook processing error:", error);
-            return callback(messageHandler("Webhook processing failed", false, BAD_REQUEST));
+            return callback({
+                success: false,
+                message: "Webhook processing failed",
+                data: null
+            });
         }
     }
 
     async handleSuccessfulPayment(data) {
-             //implement
+        try {
+            const { reference, amount, customer, metadata } = data;
+            
+            console.log('Processing successful payment:', {
+                reference,
+                amount,
+                customer_email: customer?.email,
+                metadata
+            });
 
+            // Import models here to avoid circular dependency
+            const { User, ProviderProfile, Payment } = await import('../../models/index.js');
+            
+            // Create payment record
+            await Payment.create({
+                reference,
+                amount: amount / 100, // Convert from kobo to naira
+                currency: 'NGN',
+                status: 'successful',
+                paymentMethod: 'paystack',
+                customerEmail: customer?.email,
+                metadata: JSON.stringify(metadata),
+                providerId: metadata?.provider_id,
+                paymentType: metadata?.registration_type === 'provider_registration' ? 'registration' : 'booking'
+            });
+
+            // If this is a provider registration payment, register the provider
+            if (metadata?.registration_type === 'provider_registration' && metadata?.registration_data) {
+                try {
+                    // Import provider service to register the provider
+                    const { default: providerService } = await import('../../services/providerService.js');
+                    
+                    // Register the provider with the stored registration data
+                    const registrationResult = await providerService.registerProvider(metadata.registration_data);
+                    
+                    // Update the payment record with the provider ID
+                    await Payment.update(
+                        { providerId: registrationResult.providerProfile.id },
+                        { where: { reference } }
+                    );
+                    
+                    console.log(`Provider ${registrationResult.providerProfile.id} registered and payment completed successfully`);
+                } catch (registrationError) {
+                    console.error('Error registering provider after payment:', registrationError);
+                    // Payment is successful but registration failed - this needs manual intervention
+                }
+            } else if (metadata?.registration_type === 'provider_registration' && metadata?.provider_id) {
+                // Legacy: Update existing provider status
+                await ProviderProfile.update(
+                    { 
+                        paymentStatus: 'paid',
+                        verificationStatus: 'pending' // Move to pending verification after payment
+                    },
+                    { where: { id: metadata.provider_id } }
+                );
+                
+                console.log(`Provider ${metadata.provider_id} payment completed successfully`);
+            }
+
+            return { success: true, message: 'Payment processed successfully' };
+        } catch (error) {
+            console.error('Error handling successful payment:', error);
+            throw error;
+        }
     }
 
     async handleFailedPayment(data) {
-             //implement
+        try {
+            const { reference, amount, customer, metadata } = data;
+            
+            console.log('Processing failed payment:', {
+                reference,
+                amount,
+                customer_email: customer?.email,
+                metadata
+            });
 
+            // Import models here to avoid circular dependency
+            const { Payment } = await import('../../models/index.js');
+            
+            // Create payment record for failed payment
+            await Payment.create({
+                reference,
+                amount: amount / 100, // Convert from kobo to naira
+                currency: 'NGN',
+                status: 'failed',
+                paymentMethod: 'paystack',
+                customerEmail: customer?.email,
+                metadata: JSON.stringify(metadata),
+                providerId: metadata?.provider_id,
+                paymentType: metadata?.registration_type === 'provider_registration' ? 'registration' : 'booking'
+            });
+
+            console.log(`Payment ${reference} failed for provider ${metadata?.provider_id}`);
+            return { success: true, message: 'Failed payment recorded' };
+        } catch (error) {
+            console.error('Error handling failed payment:', error);
+            throw error;
+        }
     }
 
     async handleSuccessfulTransfer(data) {
@@ -194,10 +368,18 @@ class PaystackService {
     async getDedicatedAccounts(customerCode, callback) {
         try {
             const response = await this.api.get(`/dedicated_account?customer=${customerCode}`);
-            return callback(messageHandler("Virtual accounts retrieved", true, SUCCESS, response.data.data));
+            return callback({
+                success: true,
+                message: "Virtual accounts retrieved",
+                data: response.data.data
+            });
         } catch (error) {
             console.error("Get DVA error:", error.response?.data || error.message);
-            return callback(messageHandler("Failed to get accounts", false, BAD_REQUEST));
+            return callback({
+                success: false,
+                message: "Failed to get accounts",
+                data: null
+            });
         }
     }
 
@@ -208,10 +390,18 @@ class PaystackService {
                 { isActive: false },
                 { where: { paystackDedicatedAccountId: accountId } }
             );
-            return callback(messageHandler("Account deactivated", true, SUCCESS, response.data.data));
+            return callback({
+                success: true,
+                message: "Account deactivated",
+                data: response.data.data
+            });
         } catch (error) {
             console.error("Deactivation error:", error.response?.data || error.message);
-            return callback(messageHandler("Failed to deactivate account", false, BAD_REQUEST));
+            return callback({
+                success: false,
+                message: "Failed to deactivate account",
+                data: null
+            });
         }
     }
 }

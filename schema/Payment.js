@@ -9,15 +9,15 @@ const Payment = sequelize.define('Payment', {
   },
   bookingId: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: true // Make optional for registration payments
   },
   userId: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: true // Make optional for registration payments
   },
   providerId: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: true // Make optional for booking payments
   },
   amount: {
     type: DataTypes.DECIMAL(10,2),
@@ -29,18 +29,28 @@ const Payment = sequelize.define('Payment', {
     defaultValue: 'NGN'
   },
   status: {
-    type: DataTypes.ENUM('pending', 'success', 'failed', 'refunded'),
+    type: DataTypes.ENUM('pending', 'successful', 'failed', 'refunded'),
     allowNull: false,
     defaultValue: 'pending'
   },
-  providerReference: {
+  reference: {
     type: DataTypes.STRING(255),
-    allowNull: true
+    allowNull: true,
+    unique: true
   },
-  gateway: {
+  paymentMethod: {
     type: DataTypes.ENUM('paystack', 'flutterwave', 'stripe', 'manual'),
     allowNull: false,
     defaultValue: 'paystack'
+  },
+  customerEmail: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  paymentType: {
+    type: DataTypes.ENUM('booking', 'registration', 'subscription', 'withdrawal'),
+    allowNull: false,
+    defaultValue: 'booking'
   },
   metadata: {
     type: DataTypes.JSON,
@@ -53,7 +63,10 @@ const Payment = sequelize.define('Payment', {
     { fields: ['bookingId'] },
     { fields: ['userId'] },
     { fields: ['providerId'] },
-    { fields: ['status'] }
+    { fields: ['status'] },
+    { fields: ['reference'] },
+    { fields: ['paymentType'] },
+    { fields: ['customerEmail'] }
   ]
 });
 

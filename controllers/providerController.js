@@ -178,6 +178,68 @@ class ProviderController {
       return messageHandler(res, BAD_REQUEST, error.message);
     }
   }
+
+  async getProviderDocuments(req, res) {
+    try {
+      const { providerId } = req.params;
+      const { type } = req.query; // Optional filter by document type
+      
+      if (!providerId) {
+        return messageHandler(res, BAD_REQUEST, 'Provider ID is required');
+      }
+
+      const documents = await providerService.getProviderDocuments(providerId, type);
+      
+      return messageHandler(res, SUCCESS, 'Documents retrieved successfully', { documents });
+    } catch (error) {
+      console.error('Error fetching provider documents:', error);
+      return messageHandler(res, 500, 'Failed to fetch provider documents');
+    }
+  }
+
+  async initializeProviderPayment(req, res) {
+    try {
+      const { providerId } = req.params;
+      
+      if (!providerId) {
+        return messageHandler(res, BAD_REQUEST, 'Provider ID is required');
+      }
+
+      const paymentData = await providerService.initializeProviderRegistrationPayment(providerId);
+      
+      return messageHandler(res, SUCCESS, 'Payment initialized successfully', paymentData);
+    } catch (error) {
+      console.error('Error initializing provider payment:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
+  async initializePaymentForRegistration(req, res) {
+    try {
+      const providerData = req.body;
+      
+      // Validate required fields for payment initialization
+      const requiredFields = ['fullName', 'email', 'businessName', 'category'];
+      const missingFields = requiredFields.filter(field => !providerData[field]);
+      
+      if (missingFields.length > 0) {
+        return messageHandler(res, BAD_REQUEST, `Missing required fields: ${missingFields.join(', ')}`);
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(providerData.email)) {
+        return messageHandler(res, BAD_REQUEST, `Invalid email format. Please use a valid email address like "user@example.com". You provided: "${providerData.email}"`);
+      }
+
+      const paymentData = await providerService.initializeProviderPayment(providerData);
+      
+      return messageHandler(res, SUCCESS, 'Payment initialized successfully', paymentData);
+    } catch (error) {
+      console.error('Error initializing payment for registration:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
 }
 
 export default new ProviderController();
