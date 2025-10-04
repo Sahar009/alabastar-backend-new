@@ -12,6 +12,7 @@ router.get('/test', (req, res) => {
 // Public routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/provider/login', authController.loginProvider);
 router.post('/firebase', authController.firebaseAuth);
 
 // Protected routes

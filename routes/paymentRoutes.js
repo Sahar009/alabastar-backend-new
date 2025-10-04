@@ -10,3 +10,4 @@ router.get('/verify/:reference', paymentController.verifyPayment);
 router.post('/webhook', express.raw({ type: 'application/json' }), paymentController.handleWebhook);
 
 export default router;
+

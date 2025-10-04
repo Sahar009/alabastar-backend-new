@@ -318,8 +318,8 @@ class ProviderService {
 
     if (location) {
       whereClause[Op.or] = [
-        { locationCity: { [Op.iLike]: `%${location}%` } },
-        { locationState: { [Op.iLike]: `%${location}%` } }
+        { locationCity: { [Op.like]: `%${location}%` } },
+        { locationState: { [Op.like]: `%${location}%` } }
       ];
     }
 
@@ -330,8 +330,8 @@ class ProviderService {
           model: User,
           where: searchTerm ? {
             [Op.or]: [
-              { fullName: { [Op.iLike]: `%${searchTerm}%` } },
-              { email: { [Op.iLike]: `%${searchTerm}%` } }
+              { fullName: { [Op.like]: `%${searchTerm}%` } },
+              { email: { [Op.like]: `%${searchTerm}%` } }
             ]
           } : {},
           attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl']

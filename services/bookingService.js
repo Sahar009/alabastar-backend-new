@@ -249,9 +249,13 @@ export const getBookingById = async (bookingId, userId, userType = 'customer') =
           attributes: ['id', 'fullName', 'email', 'phone']
         },
         {
-          model: User,
-          as: 'provider',
-          attributes: ['id', 'fullName', 'email', 'phone']
+          model: ProviderProfile,
+          as: 'providerProfile',
+          attributes: ['id', 'businessName', 'category'],
+          include: [{
+            model: User,
+            attributes: ['id', 'fullName', 'email', 'phone']
+          }]
         },
         {
           model: Service,
@@ -319,9 +323,13 @@ export const updateBookingStatus = async (bookingId, userId, userType, newStatus
           attributes: ['id', 'fullName', 'email', 'phone']
         },
         {
-          model: User,
-          as: 'provider',
-          attributes: ['id', 'fullName', 'email', 'phone']
+          model: ProviderProfile,
+          as: 'providerProfile',
+          attributes: ['id', 'businessName', 'category'],
+          include: [{
+            model: User,
+            attributes: ['id', 'fullName', 'email', 'phone']
+          }]
         },
         {
           model: Service,

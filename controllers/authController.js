@@ -111,6 +111,36 @@ class AuthController {
     }
   }
 
+  async loginProvider(req, res) {
+    try {
+      console.log('Provider login request received:', { email: req.body.email, password: req.body.password ? '[HIDDEN]' : 'missing' });
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        console.log('Validation failed: missing email or password');
+        return messageHandler(res, BAD_REQUEST, 'Email and password are required');
+      }
+
+      const result = await authService.loginProvider(email, password);
+
+      console.log('Provider login successful, sending response');
+      return messageHandler(res, SUCCESS, 'Provider login successful', result);
+    } catch (error) {
+      console.error('Provider login error:', error);
+      if (error.message === 'Invalid credentials' || error.message === 'Account is not active') {
+        return messageHandler(res, UNAUTHORIZED, error.message);
+      }
+      
+      // Handle validation errors
+      if (error.name === 'SequelizeValidationError') {
+        const validationErrors = error.errors.map(err => err.message).join(', ');
+        return messageHandler(res, BAD_REQUEST, `Validation failed: ${validationErrors}`);
+      }
+      
+      return messageHandler(res, INTERNAL_SERVER_ERROR, 'Provider login failed');
+    }
+  }
+
   async firebaseAuth(req, res) {
     try {
       const { idToken, email, displayName, photoURL, uid, phone } = req.body;

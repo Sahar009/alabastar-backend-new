@@ -97,9 +97,9 @@ class AuthService {
     };
   }
 
-  async loginUser(email, password) {
+  async loginUser(email, password, role = 'customer') {
     const user = await User.findOne({
-      where: { email, role: 'customer' },
+      where: { email, role },
       include: [{
         model: Customer,
         as: 'customer'
@@ -151,6 +151,54 @@ class AuthService {
         preferences: user.customer.preferences,
         notificationSettings: user.customer.notificationSettings
       } : null
+    };
+  }
+
+  async loginProvider(email, password) {
+    const user = await User.findOne({
+      where: { email, role: 'provider' }
+    });
+
+    if (!user) {
+      throw new Error('Invalid credentials');
+    }
+
+    if (user.status !== 'active') {
+      throw new Error('Account is not active');
+    }
+
+    if (user.provider === 'email') {
+      if (!password) {
+        throw new Error('Password is required');
+      }
+
+      const isValidPassword = await verifyPassword(password, user.passwordHash);
+      if (!isValidPassword) {
+        throw new Error('Invalid credentials');
+      }
+    }
+
+    const token = jwt.sign(
+      { 
+        userId: user.id, 
+        email: user.email, 
+        role: user.role 
+      },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '7d' }
+    );
+
+    return {
+      token,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        status: user.status,
+        provider: user.provider
+      }
     };
   }
 
