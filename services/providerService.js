@@ -1,6 +1,7 @@
 import { User, ProviderProfile, ProviderDocument } from '../schema/index.js';
 import { Service } from '../schema/index.js';
 import { sendEmail } from '../modules/notifications/email.js';
+import NotificationHelper from '../utils/notificationHelper.js';
 import { generateToken } from '../utils/index.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
@@ -181,6 +182,15 @@ class ProviderService {
     } catch (error) {
       console.error('Error sending welcome email:', error);
     }
+
+    // Send welcome notification
+    (async () => {
+      try {
+        await NotificationHelper.notifyWelcome(user.id, user.fullName, 'provider');
+      } catch (error) {
+        console.error('Error sending welcome notification:', error);
+      }
+    })();
 
     // Generate JWT token for the new user
     const tokenPayload = {

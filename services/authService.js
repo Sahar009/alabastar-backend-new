@@ -2,6 +2,7 @@ import { User, Customer } from '../schema/index.js';
 import { hashPassword, verifyPassword } from '../utils/index.js';
 import jwt from 'jsonwebtoken';
 import { sendEmail } from '../modules/notifications/email.js';
+import NotificationHelper from '../utils/notificationHelper.js';
 import crypto from 'crypto';
 import initializeFirebase from '../config/firebase.js';
 
@@ -78,6 +79,15 @@ class AuthService {
         console.error('Failed to send welcome email:', error);
       }
     }
+
+    // Send welcome notification
+    (async () => {
+      try {
+        await NotificationHelper.notifyWelcome(user.id, user.fullName, 'customer');
+      } catch (error) {
+        console.error('Error sending welcome notification:', error);
+      }
+    })();
 
     return {
       user: {

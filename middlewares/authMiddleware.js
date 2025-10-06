@@ -26,6 +26,7 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     req.user = {
+      id: user.id,  // Add 'id' for compatibility
       userId: user.id,
       email: user.email,
       role: user.role,
@@ -52,6 +53,11 @@ export const requireProvider = (req, res, next) => {
   }
   next();
 };
+
+// Export authenticate as alias for compatibility
+export const authenticate = authenticateToken;
+
+
 
 
 

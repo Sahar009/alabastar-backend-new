@@ -12,20 +12,110 @@ const NotificationPreference = sequelize.define('NotificationPreference', {
     allowNull: false,
     unique: true
   },
-  email: {
+  // Global channel preferences
+  emailEnabled: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true
   },
-  sms: {
+  smsEnabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
+  },
+  pushEnabled: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true
   },
-  push: {
+  inAppEnabled: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: true
+  },
+  
+  // Category-specific preferences
+  bookingNotifications: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: {
+      email: true,
+      push: true,
+      sms: false,
+      inApp: true
+    }
+  },
+  transactionNotifications: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: {
+      email: true,
+      push: true,
+      sms: false,
+      inApp: true
+    }
+  },
+  messageNotifications: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: {
+      email: true,
+      push: true,
+      sms: false,
+      inApp: true
+    }
+  },
+  accountNotifications: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: {
+      email: true,
+      push: true,
+      sms: false,
+      inApp: true
+    }
+  },
+  marketingNotifications: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: {
+      email: true,
+      push: false,
+      sms: false,
+      inApp: true
+    }
+  },
+  systemNotifications: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    defaultValue: {
+      email: true,
+      push: true,
+      sms: false,
+      inApp: true
+    }
+  },
+  
+  // Additional preferences
+  doNotDisturbStart: {
+    type: DataTypes.TIME,
+    allowNull: true,
+    comment: 'Start time for Do Not Disturb (e.g., 22:00:00)'
+  },
+  doNotDisturbEnd: {
+    type: DataTypes.TIME,
+    allowNull: true,
+    comment: 'End time for Do Not Disturb (e.g., 08:00:00)'
+  },
+  timezone: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    defaultValue: 'UTC'
+  },
+  language: {
+    type: DataTypes.STRING(10),
+    allowNull: false,
+    defaultValue: 'en'
   }
 }, {
   timestamps: true,
@@ -36,6 +126,8 @@ const NotificationPreference = sequelize.define('NotificationPreference', {
 });
 
 export default NotificationPreference;
+
+
 
 
 

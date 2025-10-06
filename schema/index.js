@@ -12,6 +12,7 @@ import ChatThread from './ChatThread.js';
 import ChatMessage from './ChatMessage.js';
 import Notification from './Notification.js';
 import NotificationPreference from './NotificationPreference.js';
+import DeviceToken from './DeviceToken.js';
 import SupportTicket from './SupportTicket.js';
 import BlogPost from './BlogPost.js';
 import ProductCategory from './ProductCategory.js';
@@ -75,6 +76,8 @@ User.hasMany(Notification, { foreignKey: 'userId' });
 Notification.belongsTo(User, { foreignKey: 'userId' });
 User.hasOne(NotificationPreference, { foreignKey: 'userId' });
 NotificationPreference.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(DeviceToken, { foreignKey: 'userId' });
+DeviceToken.belongsTo(User, { foreignKey: 'userId' });
 
 User.hasMany(SupportTicket, { foreignKey: 'userId' });
 SupportTicket.belongsTo(User, { foreignKey: 'userId' });
@@ -130,6 +133,7 @@ export {
   ChatMessage,
   Notification,
   NotificationPreference,
+  DeviceToken,
   SupportTicket,
   BlogPost,
   ProductCategory,

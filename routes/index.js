@@ -5,6 +5,7 @@ import locationRoutes from './locationRoutes.js';
 import authRoutes from './authRoutes.js';
 import bookingRoutes from './bookingRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
+import notificationRoutes from './notificationRoutes.js';
 
 const router = (app) => {
   // API routes
@@ -26,6 +27,9 @@ const router = (app) => {
   
   // Payment routes
   app.use('/api/payments', paymentRoutes);
+  
+  // Notification routes
+  app.use('/api/notifications', notificationRoutes);
 
   app.get('/api/health', (req, res) => {
     res.status(200).json({

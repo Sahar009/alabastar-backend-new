@@ -1,5 +1,7 @@
 import { Booking, User, Service, ProviderProfile } from '../schema/index.js';
 import { sendEmail } from '../modules/notifications/email.js';
+import NotificationHelper from '../utils/notificationHelper.js';
+import notificationService from './notificationService.js';
 import { Op } from 'sequelize';
 
 export const createBooking = async (bookingData) => {
@@ -113,31 +115,35 @@ export const createBooking = async (bookingData) => {
       ]
     });
 
-    // Fire-and-forget email notifications (do not block booking response)
+    // Fire-and-forget notifications (do not block booking response)
     (async () => {
       try {
-        const providerEmail = bookingWithDetails?.providerProfile?.User?.email;
-        const customerEmail = bookingWithDetails?.customer?.email;
-        const serviceTitle = bookingWithDetails?.service?.title || 'General Service';
-        const scheduled = new Date(bookingWithDetails?.scheduledAt).toLocaleString();
+        // Send notification to provider about new booking
+        await NotificationHelper.notifyBookingCreated(
+          bookingWithDetails,
+          bookingWithDetails.providerProfile,
+          bookingWithDetails.customer,
+          bookingWithDetails.service || { title: 'General Service' }
+        );
 
-        if (providerEmail) {
-          await sendEmail(
-            providerEmail,
-            `New booking request: ${serviceTitle}`,
-            `You have a new booking request for ${serviceTitle} on ${scheduled}. Please log in to view details and accept.`
-          );
-        }
-
-        if (customerEmail) {
-          await sendEmail(
-            customerEmail,
-            'Booking confirmation',
-            `Your booking for ${serviceTitle} on ${scheduled} has been created. We will notify you when the provider confirms.`
-          );
-        }
+        // Send confirmation notification to customer
+        await notificationService.createNotification({
+          userId: bookingWithDetails.userId,
+          title: 'Booking Request Sent',
+          body: `Your booking request for ${bookingWithDetails.service?.title || 'service'} has been sent to the provider. We'll notify you when they confirm.`,
+          type: 'booking_created',
+          category: 'booking',
+          priority: 'normal',
+          channels: ['in_app', 'email'],
+          actionUrl: `/bookings/${bookingWithDetails.id}`,
+          meta: {
+            bookingId: bookingWithDetails.id,
+            providerId: bookingWithDetails.providerId,
+            serviceId: bookingWithDetails.serviceId
+          }
+        });
       } catch (e) {
-        console.warn('[Booking] Notification email failed:', e?.message || e);
+        console.warn('[Booking] Notification failed:', e?.message || e);
       }
     })();
 
@@ -339,6 +345,47 @@ export const updateBookingStatus = async (bookingId, userId, userType, newStatus
       ]
     });
 
+    // Send notifications based on status change
+    (async () => {
+      try {
+        if (newStatus === 'accepted') {
+          // Notify customer that booking was confirmed
+          await NotificationHelper.notifyBookingConfirmed(
+            updatedBooking,
+            updatedBooking.customer,
+            updatedBooking.providerProfile,
+            updatedBooking.service || { title: 'Service' }
+          );
+        } else if (newStatus === 'completed') {
+          // Notify customer that booking is completed
+          await NotificationHelper.notifyBookingCompleted(
+            updatedBooking,
+            updatedBooking.customer,
+            updatedBooking.providerProfile,
+            updatedBooking.service || { title: 'Service' }
+          );
+        } else if (newStatus === 'in_progress') {
+          // Notify customer that service has started
+          await notificationService.createNotification({
+            userId: updatedBooking.userId,
+            title: 'Service Started',
+            body: `Your ${updatedBooking.service?.title || 'service'} has started. The provider is on their way or working on your request.`,
+            type: 'booking_created',
+            category: 'booking',
+            priority: 'high',
+            channels: ['in_app', 'push', 'sms'],
+            actionUrl: `/bookings/${updatedBooking.id}`,
+            meta: {
+              bookingId: updatedBooking.id,
+              status: newStatus
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('[Booking] Status notification failed:', e?.message || e);
+      }
+    })();
+
     return { success: true, message: 'Booking status updated successfully', statusCode: 200, data: updatedBooking };
 
   } catch (error) {
@@ -369,11 +416,59 @@ export const cancelBooking = async (bookingId, userId, userType, reason = null) 
       return { success: false, message: 'Booking cannot be cancelled', statusCode: 400 };
     }
 
+    // Fetch full booking details
+    const fullBooking = await Booking.findByPk(bookingId, {
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['id', 'fullName', 'email', 'phone']
+        },
+        {
+          model: ProviderProfile,
+          as: 'providerProfile',
+          include: [{
+            model: User,
+            attributes: ['id', 'fullName', 'email', 'phone']
+          }]
+        },
+        {
+          model: Service,
+          as: 'service',
+          attributes: ['id', 'title', 'description']
+        }
+      ]
+    });
+
     // Update booking status
     await booking.update({
       status: 'cancelled',
       notes: booking.notes ? `${booking.notes}\nCancelled: ${reason || 'No reason provided'}` : `Cancelled: ${reason || 'No reason provided'}`
     });
+
+    // Send cancellation notifications to both parties
+    (async () => {
+      try {
+        // Determine who to notify based on who cancelled
+        if (userType === 'customer') {
+          // Notify provider about customer cancellation
+          await NotificationHelper.notifyBookingCancelled(
+            fullBooking,
+            fullBooking.providerProfile.userId,
+            reason || 'Customer cancelled the booking'
+          );
+        } else if (userType === 'provider') {
+          // Notify customer about provider cancellation
+          await NotificationHelper.notifyBookingCancelled(
+            fullBooking,
+            fullBooking.userId,
+            reason || 'Provider cancelled the booking'
+          );
+        }
+      } catch (e) {
+        console.warn('[Booking] Cancellation notification failed:', e?.message || e);
+      }
+    })();
 
     return { success: true, message: 'Booking cancelled successfully', statusCode: 200, data: booking };
 
