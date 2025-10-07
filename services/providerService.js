@@ -17,38 +17,73 @@ class ProviderService {
 
   // Initialize payment for provider registration
   async initializeProviderPayment(providerData) {
-    return new Promise((resolve, reject) => {
-      const registrationFee = this.getRegistrationFee();
-      const reference = `provider_reg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const paymentData = {
-        email: providerData.email,
-        amount: registrationFee,
-        reference,
-        callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/provider/registration/success`,
-        provider_id: null, // Will be set after successful payment
-        business_name: providerData.businessName,
-        full_name: providerData.fullName,
-        phone: providerData.phone,
-        category: providerData.category,
-        registration_data: providerData // Store all registration data for later use
-      };
-
-      console.log('Initializing payment with data:', paymentData);
-      
-      paystackService.initializeTransaction(paymentData, (response) => {
-        console.log('Paystack response:', response);
-        if (response.success) {
-          resolve({
-            ...response.data,
-            registrationFee,
-            reference,
-            registrationData: providerData // Include registration data for frontend
-          });
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { SubscriptionPlan } = await import('../schema/index.js');
+        
+        // Get the selected subscription plan
+        let selectedPlan = null;
+        if (providerData.subscriptionPlanId) {
+          selectedPlan = await SubscriptionPlan.findByPk(providerData.subscriptionPlanId);
+          if (!selectedPlan) {
+            throw new Error('Selected subscription plan not found');
+          }
         } else {
-          reject(new Error(response.message || 'Failed to initialize payment'));
+          // Default to the cheapest active plan
+          selectedPlan = await SubscriptionPlan.findOne({
+            where: { isActive: true },
+            order: [['price', 'ASC']]
+          });
+          
+          if (!selectedPlan) {
+            throw new Error('No active subscription plans available');
+          }
         }
-      });
+
+        const reference = `provider_reg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        const paymentData = {
+          email: providerData.email,
+          amount: selectedPlan.price, // Use subscription plan price instead of registration fee
+          reference,
+          callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/provider/registration/success`,
+          provider_id: null, // Will be set after successful payment
+          business_name: providerData.businessName,
+          full_name: providerData.fullName,
+          phone: providerData.phone,
+          category: providerData.category,
+          registration_data: {
+            ...providerData,
+            subscriptionPlanId: selectedPlan.id,
+            subscriptionPlanName: selectedPlan.name,
+            subscriptionPlanPrice: selectedPlan.price
+          } // Store all registration data including subscription plan
+        };
+
+        console.log('Initializing payment with data:', paymentData);
+        
+        paystackService.initializeTransaction(paymentData, (response) => {
+          console.log('Paystack response:', response);
+          if (response.success) {
+            resolve({
+              ...response.data,
+              subscriptionPlan: {
+                id: selectedPlan.id,
+                name: selectedPlan.name,
+                price: selectedPlan.price,
+                interval: selectedPlan.interval,
+                benefits: selectedPlan.benefits
+              },
+              reference,
+              registrationData: providerData // Include registration data for frontend
+            });
+          } else {
+            reject(new Error(response.message || 'Failed to initialize payment'));
+          }
+        });
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -96,6 +131,7 @@ class ProviderService {
       latitude,
       longitude,
       portfolio,
+      referralCode, // Add referral code
       
       // Document data
       documents,
@@ -146,6 +182,26 @@ class ProviderService {
       paymentStatus: 'pending' // Add payment status
     });
 
+    // Process referral code if provided
+    if (referralCode && referralCode.trim()) {
+      try {
+        // Import ReferralService dynamically to avoid circular dependency
+        const { default: ReferralService } = await import('./referralService.js');
+        
+        // Process the referral
+        const referralResult = await ReferralService.processReferral(providerProfile.id, referralCode.trim());
+        
+        if (referralResult.success) {
+          console.log(`Provider ${providerProfile.id} successfully referred by code: ${referralCode}`);
+        } else {
+          console.log(`Referral code ${referralCode} processing failed: ${referralResult.message}`);
+        }
+      } catch (referralError) {
+        console.error('Error processing referral code:', referralError);
+        // Don't fail the registration if referral processing fails
+      }
+    }
+
     // Create provider documents
     const createdDocuments = [];
     if (documents && documents.length > 0) {
@@ -192,6 +248,61 @@ class ProviderService {
       }
     })();
 
+    // Create subscription for the provider using selected plan
+    let subscription = null;
+    try {
+      const { default: SubscriptionService } = await import('./subscriptionService.js');
+      const { SubscriptionPlan } = await import('../schema/index.js');
+      
+      // Use the selected subscription plan from registration data
+      let selectedPlan = null;
+      if (providerData.subscriptionPlanId) {
+        selectedPlan = await SubscriptionPlan.findByPk(providerData.subscriptionPlanId);
+      }
+      
+      // Fallback to cheapest active plan if no plan selected
+      if (!selectedPlan) {
+        selectedPlan = await SubscriptionPlan.findOne({ 
+          where: { isActive: true },
+          order: [['price', 'ASC']] // Get the cheapest plan first
+        });
+      }
+      
+      // If no plan exists, create a default one
+      if (!selectedPlan) {
+        selectedPlan = await SubscriptionPlan.create({
+          name: 'Basic Plan',
+          slug: 'basic-plan',
+          price: 5000.00, // Same as registration fee
+          interval: 'monthly',
+          benefits: ['Basic listing', 'Customer support'],
+          isActive: true
+        });
+      }
+      
+      // Create subscription for the provider
+      const subscriptionResult = await SubscriptionService.createSubscription(
+        providerProfile.id,
+        selectedPlan.id,
+        { 
+          registrationType: 'provider_registration',
+          registrationFee: this.getRegistrationFee(),
+          selectedPlanName: selectedPlan.name,
+          selectedPlanPrice: selectedPlan.price
+        }
+      );
+      
+      if (subscriptionResult.success) {
+        subscription = subscriptionResult.data;
+        console.log(`Subscription created for provider ${providerProfile.id}: ${subscription.id} (Plan: ${selectedPlan.name})`);
+      } else {
+        console.error('Failed to create subscription:', subscriptionResult.message);
+      }
+    } catch (subscriptionError) {
+      console.error('Error creating subscription:', subscriptionError);
+      // Don't fail the registration if subscription creation fails
+    }
+
     // Generate JWT token for the new user
     const tokenPayload = {
       userId: user.id,
@@ -223,6 +334,12 @@ class ProviderService {
       },
       documents: createdDocuments,
       brandImages: createdBrandImages,
+      subscription: subscription ? {
+        id: subscription.id,
+        status: subscription.status,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd
+      } : null,
       token: token
     };
   }
@@ -279,6 +396,28 @@ class ProviderService {
     return provider;
   }
 
+  async getProviderProfileByUserId(userId) {
+    const provider = await ProviderProfile.findOne({
+      where: { userId: userId },
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl', 'isEmailVerified', 'isPhoneVerified']
+        },
+        {
+          model: ProviderDocument,
+          attributes: ['id', 'type', 'url', 'status', 'notes', 'createdAt']
+        }
+      ]
+    });
+
+    if (!provider) {
+      throw new Error('Provider not found');
+    }
+
+    return provider;
+  }
+
   async updateProviderProfile(providerId, updateData) {
     const provider = await ProviderProfile.findByPk(providerId);
     if (!provider) {
@@ -305,7 +444,7 @@ class ProviderService {
       ],
       limit,
       offset,
-      order: [['ratingAverage', 'DESC']]
+      order: [['createdAt', 'DESC']]
     });
 
     return {
@@ -349,7 +488,7 @@ class ProviderService {
       ],
       limit,
       offset,
-      order: [['ratingAverage', 'DESC']]
+      order: [['createdAt', 'DESC']]
     });
 
     return {

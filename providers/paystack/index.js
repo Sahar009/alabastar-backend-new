@@ -285,7 +285,16 @@ class PaystackService {
                         { where: { reference } }
                     );
                     
-                    console.log(`Provider ${registrationResult.providerProfile.id} registered and payment completed successfully`);
+                    // Update provider payment status to paid
+                    await ProviderProfile.update(
+                        { 
+                            paymentStatus: 'paid',
+                            verificationStatus: 'pending' // Move to pending verification after payment
+                        },
+                        { where: { id: registrationResult.providerProfile.id } }
+                    );
+                    
+                    console.log(`Provider ${registrationResult.providerProfile.id} registered, subscription created, and payment completed successfully`);
                 } catch (registrationError) {
                     console.error('Error registering provider after payment:', registrationError);
                     // Payment is successful but registration failed - this needs manual intervention

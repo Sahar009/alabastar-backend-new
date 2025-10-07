@@ -56,3 +56,6 @@ async function sendSimpleTestNotifications() {
 // Run the test
 sendSimpleTestNotifications();
 
+
+
+

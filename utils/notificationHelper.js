@@ -156,20 +156,20 @@ class NotificationHelper {
   /**
    * Send new review notification
    */
-  static async notifyReviewReceived(review, providerId, rating, customerName) {
+  static async notifyReviewReceived(providerId, customerName, rating, comment = '') {
     return await notificationService.createNotification({
       userId: providerId,
       title: 'New Review Received',
-      body: `${customerName} left you a ${rating}-star review`,
+      body: `${customerName} left you a ${rating}-star review${comment ? ': "' + comment.substring(0, 50) + (comment.length > 50 ? '..."' : '"') : ''}`,
       type: 'review_received',
       category: 'account',
       priority: 'normal',
       channels: ['in_app', 'email'],
-      actionUrl: `/provider/reviews/${review.id}`,
+      actionUrl: '/provider/reviews',
       meta: {
-        reviewId: review.id,
         rating,
-        customerName
+        customerName,
+        comment: comment ? comment.substring(0, 100) : null
       }
     });
   }

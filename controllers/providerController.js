@@ -55,6 +55,14 @@ class ProviderController {
         return messageHandler(res, BAD_REQUEST, 'Invalid service category');
       }
 
+      // Validate referral code format if provided
+      if (providerData.referralCode && providerData.referralCode.trim()) {
+        const referralCodeRegex = /^[A-Z0-9]{6,20}$/;
+        if (!referralCodeRegex.test(providerData.referralCode.trim())) {
+          return messageHandler(res, BAD_REQUEST, 'Invalid referral code format. Referral codes should be 6-20 characters long and contain only uppercase letters and numbers.');
+        }
+      }
+
 
       const result = await providerService.registerProvider(providerData);
       
@@ -78,6 +86,26 @@ class ProviderController {
       return messageHandler(res, SUCCESS, 'Provider profile retrieved successfully', provider);
     } catch (error) {
       console.error('Get provider profile error:', error);
+      if (error.message === 'Provider not found') {
+        return messageHandler(res, NOT_FOUND, error.message);
+      }
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
+  async getCurrentProviderProfile(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      if (!userId) {
+        return messageHandler(res, BAD_REQUEST, 'User ID is required');
+      }
+
+      const provider = await providerService.getProviderProfileByUserId(userId);
+      
+      return messageHandler(res, SUCCESS, 'Provider profile retrieved successfully', provider);
+    } catch (error) {
+      console.error('Get current provider profile error:', error);
       if (error.message === 'Provider not found') {
         return messageHandler(res, NOT_FOUND, error.message);
       }

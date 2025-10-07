@@ -36,16 +36,6 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
     type: DataTypes.DATE,
     allowNull: true
   },
-  ratingAverage: {
-    type: DataTypes.DECIMAL(3,2),
-    defaultValue: 0,
-    allowNull: false
-  },
-  ratingCount: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
-    allowNull: false
-  },
   locationCity: {
     type: DataTypes.STRING(100),
     allowNull: true
@@ -65,6 +55,34 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
   portfolio: {
     type: DataTypes.JSON,
     allowNull: true
+  },
+  referralCode: {
+    type: DataTypes.STRING(20),
+    allowNull: true,
+    unique: true,
+    comment: 'Unique referral code for this provider'
+  },
+  referredBy: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    comment: 'Provider who referred this provider'
+  },
+  totalReferrals: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false,
+    comment: 'Total number of successful referrals'
+  },
+  totalCommissionsEarned: {
+    type: DataTypes.DECIMAL(10,2),
+    defaultValue: 0.00,
+    allowNull: false,
+    comment: 'Total commissions earned from referrals'
+  },
+  referralSettings: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    comment: 'Referral preferences and settings'
   }
 }, {
   timestamps: true,
@@ -73,7 +91,10 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
     { fields: ['userId'] },
     { fields: ['category'] },
     { fields: ['verificationStatus'] },
-    { fields: ['locationCity', 'locationState'] }
+    { fields: ['locationCity', 'locationState'] },
+    { fields: ['referralCode'] },
+    { fields: ['referredBy'] },
+    { fields: ['totalReferrals'] }
   ]
 });
 

@@ -26,6 +26,8 @@ import ProviderDocument from './ProviderDocument.js';
 import NewsletterSubscription from './NewsletterSubscription.js';
 import SubscriptionPlan from './SubscriptionPlan.js';
 import ProviderSubscription from './ProviderSubscription.js';
+import ProviderReferral from './ProviderReferral.js';
+import ReferralCommission from './ReferralCommission.js';
 import Withdrawal from './Withdrawal.js';
 import CorporateRequest from './CorporateRequest.js';
 import ContactMessage from './ContactMessage.js';
@@ -118,6 +120,19 @@ ProviderSubscription.belongsTo(ProviderProfile, { foreignKey: 'providerId' });
 User.hasMany(Withdrawal, { foreignKey: 'userId' });
 Withdrawal.belongsTo(User, { foreignKey: 'userId' });
 
+// Referral associations
+ProviderProfile.hasMany(ProviderReferral, { foreignKey: 'referrerId', as: 'ReferralsMade' });
+ProviderProfile.hasMany(ProviderReferral, { foreignKey: 'refereeId', as: 'ReferralsReceived' });
+ProviderReferral.belongsTo(ProviderProfile, { foreignKey: 'referrerId', as: 'Referrer' });
+ProviderReferral.belongsTo(ProviderProfile, { foreignKey: 'refereeId', as: 'Referee' });
+
+ProviderReferral.hasMany(ReferralCommission, { foreignKey: 'referralId' });
+ReferralCommission.belongsTo(ProviderReferral, { foreignKey: 'referralId' });
+ProviderProfile.hasMany(ReferralCommission, { foreignKey: 'referrerId' });
+ReferralCommission.belongsTo(ProviderProfile, { foreignKey: 'referrerId' });
+ProviderSubscription.hasMany(ReferralCommission, { foreignKey: 'subscriptionId' });
+ReferralCommission.belongsTo(ProviderSubscription, { foreignKey: 'subscriptionId' });
+
 export {
   User,
   Customer,
@@ -147,6 +162,8 @@ export {
   NewsletterSubscription,
   SubscriptionPlan,
   ProviderSubscription,
+  ProviderReferral,
+  ReferralCommission,
   Withdrawal,
   CorporateRequest,
   ContactMessage

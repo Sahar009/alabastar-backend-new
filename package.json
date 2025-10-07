@@ -13,7 +13,13 @@
     "seed": "sequelize-cli db:seed:all",
     "seed:undo": "sequelize-cli db:seed:undo:all",
     "create-tables": "node scripts/create-tables.js",
-    "seed-providers": "node run-seed.js"
+    "seed-providers": "node run-seed.js",
+    "add-ratings": "node add-random-ratings.js",
+    "add-direct-ratings": "node add-direct-ratings.js",
+    "test-referral": "node test-referral-system.js",
+    "create-test-providers": "node create-test-providers.js",
+    "generate-test-codes": "node generate-test-referral-codes.js",
+    "test-referral-commission": "node test-referral-commission-flow.js"
   },
   "keywords": [],
   "author": "Dev sahar",

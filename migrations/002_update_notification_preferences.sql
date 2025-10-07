@@ -48,3 +48,6 @@ WHERE `bookingNotifications` IS NULL;
 -- ============================================
 -- DESCRIBE `notification_preferences`;
 
+
+
+

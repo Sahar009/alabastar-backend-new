@@ -6,6 +6,9 @@ import authRoutes from './authRoutes.js';
 import bookingRoutes from './bookingRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
+import reviewRoutes from './reviewRoutes.js';
+import referralRoutes from './referralRoutes.js';
+import subscriptionPlanRoutes from './subscriptionPlanRoutes.js';
 
 const router = (app) => {
   // API routes
@@ -30,6 +33,15 @@ const router = (app) => {
   
   // Notification routes
   app.use('/api/notifications', notificationRoutes);
+  
+  // Review routes
+  app.use('/api/reviews', reviewRoutes);
+  
+  // Referral routes
+  app.use('/api/referrals', referralRoutes);
+  
+  // Subscription plan routes
+  app.use('/api/subscription-plans', subscriptionPlanRoutes);
 
   app.get('/api/health', (req, res) => {
     res.status(200).json({

@@ -1,5 +1,6 @@
 import express from 'express';
 import providerController from '../controllers/providerController.js';
+import { authenticateToken } from '../middlewares/authMiddleware.js';
 import { uploadProviderDocuments, uploadBrandImages, processUploadedFiles, handleUploadError } from '../middlewares/uploadMiddleware.js';
 
 const router = express.Router();
@@ -12,6 +13,9 @@ router.post('/initialize-payment', providerController.initializePaymentForRegist
 
 // Get provider profile
 router.get('/profile/:providerId', providerController.getProviderProfile);
+
+// Get current user's provider profile (requires authentication)
+router.get('/profile', authenticateToken, providerController.getCurrentProviderProfile);
 
 // Update provider profile
 router.put('/profile/:providerId', providerController.updateProviderProfile);
