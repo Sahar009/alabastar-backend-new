@@ -577,6 +577,37 @@ class ProviderService {
       throw error;
     }
   }
+
+  async createProviderDocument(documentData) {
+    try {
+      const document = await ProviderDocument.create(documentData);
+      return document;
+    } catch (error) {
+      console.error('Error creating provider document:', error);
+      throw error;
+    }
+  }
+
+  async deleteProviderDocument(documentId, providerId) {
+    try {
+      const document = await ProviderDocument.findOne({
+        where: {
+          id: documentId,
+          providerId: providerId
+        }
+      });
+
+      if (!document) {
+        throw new Error('Document not found');
+      }
+
+      await document.destroy();
+      return true;
+    } catch (error) {
+      console.error('Error deleting provider document:', error);
+      throw error;
+    }
+  }
 }
 
 export default new ProviderService();

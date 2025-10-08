@@ -427,6 +427,62 @@ class AuthService {
       } : null
     };
   }
+
+  async changePassword(userId, currentPassword, newPassword) {
+    try {
+      const user = await User.findByPk(userId);
+
+      if (!user) {
+        return { success: false, message: 'User not found' };
+      }
+
+      // Verify current password
+      const isPasswordValid = await verifyPassword(currentPassword, user.passwordHash);
+      if (!isPasswordValid) {
+        return { success: false, message: 'Current password is incorrect' };
+      }
+
+      // Hash new password
+      const newPasswordHash = await hashPassword(newPassword);
+
+      // Update password
+      user.passwordHash = newPasswordHash;
+      await user.save();
+
+      return { success: true, message: 'Password changed successfully' };
+    } catch (error) {
+      console.error('Error changing password:', error);
+      return { success: false, message: error.message || 'Failed to change password' };
+    }
+  }
+
+  async deleteAccount(userId) {
+    try {
+      const user = await User.findByPk(userId, {
+        include: [{
+          model: Customer,
+          as: 'customer'
+        }]
+      });
+
+      if (!user) {
+        return { success: false, message: 'User not found' };
+      }
+
+      // Delete customer profile if exists
+      if (user.customer) {
+        await user.customer.destroy();
+      }
+
+      // Delete user account
+      await user.destroy();
+
+      return { success: true, message: 'Account deleted successfully' };
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      return { success: false, message: error.message || 'Failed to delete account' };
+    }
+  }
 }
 
 export default new AuthService();

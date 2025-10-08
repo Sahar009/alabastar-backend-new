@@ -64,3 +64,5 @@ const ProviderReferral = sequelize.define('ProviderReferral', {
 });
 
 export default ProviderReferral;
+
+

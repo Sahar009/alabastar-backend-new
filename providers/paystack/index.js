@@ -103,18 +103,30 @@ class PaystackService {
     async verifyTransaction(reference, callback) {
         try {
             const response = await this.api.get(`/transaction/verify/${reference}`);
-            return callback({
+            const result = {
                 success: true,
                 message: "Transaction verified successfully",
                 data: response.data.data
-            });
+            };
+            
+            // Support both callback and promise patterns
+            if (callback && typeof callback === 'function') {
+                return callback(result);
+            }
+            return result;
         } catch (error) {
             console.error("Error verifying transaction:", error.response?.data || error.message);
-            return callback({
+            const result = {
                 success: false,
                 message: "Failed to verify transaction",
                 data: null
-            });
+            };
+            
+            // Support both callback and promise patterns
+            if (callback && typeof callback === 'function') {
+                return callback(result);
+            }
+            return result;
         }
     }
 

@@ -268,6 +268,66 @@ class ProviderController {
       return messageHandler(res, BAD_REQUEST, error.message);
     }
   }
+
+  async uploadProviderDocument(req, res) {
+    try {
+      const { providerId } = req.params;
+      const { type } = req.body;
+      
+      if (!providerId) {
+        return messageHandler(res, BAD_REQUEST, 'Provider ID is required');
+      }
+
+      if (!type) {
+        return messageHandler(res, BAD_REQUEST, 'Document type is required');
+      }
+
+      if (!req.uploadResults || !req.uploadResults.documents || req.uploadResults.documents.length === 0) {
+        return messageHandler(res, BAD_REQUEST, 'No file uploaded');
+      }
+
+      const uploadedFile = req.uploadResults.documents[0];
+      
+      const documentData = {
+        providerId,
+        type,
+        url: uploadedFile.secure_url,
+        status: 'pending',
+        notes: req.body.notes || null
+      };
+
+      const document = await providerService.createProviderDocument(documentData);
+      
+      return messageHandler(res, CREATED, 'Document uploaded successfully', document);
+    } catch (error) {
+      console.error('Error uploading provider document:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
+  async deleteProviderDocument(req, res) {
+    try {
+      const { providerId, documentId } = req.params;
+      
+      if (!providerId) {
+        return messageHandler(res, BAD_REQUEST, 'Provider ID is required');
+      }
+
+      if (!documentId) {
+        return messageHandler(res, BAD_REQUEST, 'Document ID is required');
+      }
+
+      await providerService.deleteProviderDocument(documentId, providerId);
+      
+      return messageHandler(res, SUCCESS, 'Document deleted successfully');
+    } catch (error) {
+      console.error('Error deleting provider document:', error);
+      if (error.message === 'Document not found') {
+        return messageHandler(res, NOT_FOUND, error.message);
+      }
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
 }
 
 export default new ProviderController();

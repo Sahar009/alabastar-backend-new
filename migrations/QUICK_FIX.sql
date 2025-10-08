@@ -34,3 +34,5 @@ SELECT 'notification_preferences table updated!' AS status;
 
 
 
+
+

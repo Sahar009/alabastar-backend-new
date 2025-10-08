@@ -114,3 +114,5 @@ const generateTestReferralCodes = async () => {
 
 // Run the script
 generateTestReferralCodes();
+
+

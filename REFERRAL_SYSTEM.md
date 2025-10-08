@@ -321,3 +321,5 @@ Default commission rate is 10%, but can be customized per referral:
 - **Social Media Integration**: Share referral codes on social platforms
 - **Mobile App Integration**: Push notifications for referral updates
 - **Advanced Analytics**: Detailed referral performance metrics
+
+

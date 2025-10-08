@@ -198,6 +198,49 @@ class AuthController {
       return messageHandler(res, INTERNAL_SERVER_ERROR, 'Profile update failed');
     }
   }
+
+  async changePassword(req, res) {
+    try {
+      const userId = req.user.userId;
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return messageHandler(res, BAD_REQUEST, 'Current password and new password are required');
+      }
+
+      if (newPassword.length < 8) {
+        return messageHandler(res, BAD_REQUEST, 'New password must be at least 8 characters long');
+      }
+
+      const result = await authService.changePassword(userId, currentPassword, newPassword);
+
+      if (!result.success) {
+        return messageHandler(res, BAD_REQUEST, result.message);
+      }
+
+      return messageHandler(res, SUCCESS, 'Password changed successfully');
+    } catch (error) {
+      console.error('Change password error:', error);
+      return messageHandler(res, INTERNAL_SERVER_ERROR, error.message || 'Failed to change password');
+    }
+  }
+
+  async deleteAccount(req, res) {
+    try {
+      const userId = req.user.userId;
+
+      const result = await authService.deleteAccount(userId);
+
+      if (!result.success) {
+        return messageHandler(res, BAD_REQUEST, result.message);
+      }
+
+      return messageHandler(res, SUCCESS, 'Account deleted successfully');
+    } catch (error) {
+      console.error('Delete account error:', error);
+      return messageHandler(res, INTERNAL_SERVER_ERROR, error.message || 'Failed to delete account');
+    }
+  }
 }
 
 export default new AuthController();

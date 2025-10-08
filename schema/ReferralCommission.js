@@ -77,3 +77,5 @@ const ReferralCommission = sequelize.define('ReferralCommission', {
 });
 
 export default ReferralCommission;
+
+

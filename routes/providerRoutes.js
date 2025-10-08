@@ -27,7 +27,13 @@ router.get('/category/:category', providerController.getProvidersByCategory);
 router.get('/search', providerController.searchProviders);
 
 // Get provider documents
-router.get('/:providerId/documents', providerController.getProviderDocuments);
+router.get('/:providerId/documents', authenticateToken, providerController.getProviderDocuments);
+
+// Upload provider document
+router.post('/:providerId/documents', authenticateToken, uploadProviderDocuments, processUploadedFiles, handleUploadError, providerController.uploadProviderDocument);
+
+// Delete provider document
+router.delete('/:providerId/documents/:documentId', authenticateToken, providerController.deleteProviderDocument);
 
 // Initialize provider payment
 router.post('/:providerId/initialize-payment', providerController.initializeProviderPayment);

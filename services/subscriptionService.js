@@ -71,8 +71,7 @@ class SubscriptionService {
         },
         include: [
           {
-            model: SubscriptionPlan,
-            as: 'plan'
+            model: SubscriptionPlan
           }
         ],
         order: [['currentPeriodEnd', 'DESC']]
@@ -128,8 +127,7 @@ class SubscriptionService {
         where: { providerId },
         include: [
           {
-            model: SubscriptionPlan,
-            as: 'plan'
+            model: SubscriptionPlan
           }
         ],
         order: [['createdAt', 'DESC']]
@@ -202,3 +200,5 @@ class SubscriptionService {
 }
 
 export default SubscriptionService;
+
+
