@@ -83,6 +83,42 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
     type: DataTypes.JSON,
     allowNull: true,
     comment: 'Referral preferences and settings'
+  },
+  videoUrl: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'Business promotional video URL (Premium feature)'
+  },
+  videoThumbnail: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'Video thumbnail image URL'
+  },
+  videoDuration: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Video duration in seconds (max 90 for Premium)'
+  },
+  videoUploadedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'When the video was uploaded'
+  },
+  topListingStartDate: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'When top listing started'
+  },
+  topListingEndDate: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'When top listing expires'
+  },
+  listingPriority: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1,
+    allowNull: false,
+    comment: 'Listing priority (1=Basic, 2=Premium)'
   }
 }, {
   timestamps: true,
@@ -94,7 +130,9 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
     { fields: ['locationCity', 'locationState'] },
     { fields: ['referralCode'] },
     { fields: ['referredBy'] },
-    { fields: ['totalReferrals'] }
+    { fields: ['totalReferrals'] },
+    { fields: ['topListingEndDate'] },
+    { fields: ['listingPriority'] }
   ]
 });
 

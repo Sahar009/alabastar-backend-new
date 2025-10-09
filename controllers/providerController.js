@@ -328,6 +328,66 @@ class ProviderController {
       return messageHandler(res, BAD_REQUEST, error.message);
     }
   }
+
+  async getFeatureLimits(req, res) {
+    try {
+      const { providerId } = req.params;
+
+      const result = await providerService.getFeatureLimits(providerId);
+
+      if (result.success) {
+        return messageHandler(res, SUCCESS, 'Feature limits retrieved successfully', result.data);
+      } else {
+        return messageHandler(res, BAD_REQUEST, 'Failed to get feature limits');
+      }
+    } catch (error) {
+      console.error('Get feature limits error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
+  async uploadProviderVideo(req, res) {
+    try {
+      const { providerId } = req.params;
+      const { videoUrl, videoThumbnail, videoDuration } = req.body;
+
+      if (!videoUrl || !videoDuration) {
+        return messageHandler(res, BAD_REQUEST, 'Video URL and duration are required');
+      }
+
+      const result = await providerService.uploadProviderVideo(providerId, {
+        videoUrl,
+        videoThumbnail,
+        videoDuration: parseInt(videoDuration)
+      });
+
+      if (result.success) {
+        return messageHandler(res, SUCCESS, result.message, result.data);
+      } else {
+        return messageHandler(res, BAD_REQUEST, result.message);
+      }
+    } catch (error) {
+      console.error('Upload video error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
+  async deleteProviderVideo(req, res) {
+    try {
+      const { providerId } = req.params;
+
+      const result = await providerService.deleteProviderVideo(providerId);
+
+      if (result.success) {
+        return messageHandler(res, SUCCESS, result.message);
+      } else {
+        return messageHandler(res, BAD_REQUEST, result.message);
+      }
+    } catch (error) {
+      console.error('Delete video error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
 }
 
 export default new ProviderController();

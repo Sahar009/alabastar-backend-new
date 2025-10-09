@@ -35,6 +35,15 @@ router.post('/:providerId/documents', authenticateToken, uploadProviderDocuments
 // Delete provider document
 router.delete('/:providerId/documents/:documentId', authenticateToken, providerController.deleteProviderDocument);
 
+// Get provider feature limits
+router.get('/:providerId/feature-limits', authenticateToken, providerController.getFeatureLimits);
+
+// Upload provider video (Premium feature)
+router.post('/:providerId/video', authenticateToken, providerController.uploadProviderVideo);
+
+// Delete provider video
+router.delete('/:providerId/video', authenticateToken, providerController.deleteProviderVideo);
+
 // Initialize provider payment
 router.post('/:providerId/initialize-payment', providerController.initializeProviderPayment);
 

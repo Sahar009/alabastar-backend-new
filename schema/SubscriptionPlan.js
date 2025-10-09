@@ -28,6 +28,21 @@ const SubscriptionPlan = sequelize.define('SubscriptionPlan', {
     type: DataTypes.JSON,
     allowNull: true
   },
+  features: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: {
+      maxPhotos: 5,
+      maxVideos: 0,
+      videoMaxDuration: 0,
+      topListingDays: 14,
+      rewardsAccess: ['monthly'],
+      promotionChannels: ['youtube'],
+      promotionEvents: ['special'],
+      priority: 1
+    },
+    comment: 'Feature limits and access based on subscription tier'
+  },
   isActive: {
     type: DataTypes.BOOLEAN,
     allowNull: false,

@@ -6,6 +6,7 @@ import { generateToken } from '../utils/index.js';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Op } from 'sequelize';
+import sequelize from '../database/db.js';
 import paystackService from '../providers/paystack/index.js';
 
 class ProviderService {
@@ -444,11 +445,32 @@ class ProviderService {
       ],
       limit,
       offset,
-      order: [['createdAt', 'DESC']]
+      order: [
+        // Top listed providers first (those with active top listing)
+        [sequelize.literal('CASE WHEN topListingEndDate > NOW() THEN 1 ELSE 0 END'), 'DESC'],
+        // Then by priority (Premium = 2, Basic = 1)
+        ['listingPriority', 'DESC'],
+        // Then by newest
+        ['createdAt', 'DESC']
+      ]
+    });
+
+    // Add computed fields
+    const providersWithStatus = providers.rows.map(provider => {
+      const isTopListed = provider.topListingEndDate && new Date(provider.topListingEndDate) > new Date();
+      const daysRemaining = isTopListed 
+        ? Math.ceil((new Date(provider.topListingEndDate) - new Date()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      return {
+        ...provider.toJSON(),
+        isTopListed,
+        daysRemaining
+      };
     });
 
     return {
-      providers: providers.rows,
+      providers: providersWithStatus,
       totalCount: providers.count,
       totalPages: Math.ceil(providers.count / limit),
       currentPage: page
@@ -472,6 +494,29 @@ class ProviderService {
       ];
     }
 
+    // Build order clause with location priority if location is specified
+    const orderClause = [];
+    
+    if (location) {
+      // Priority 1: Exact city match (providers in the searched city appear first)
+      orderClause.push([
+        sequelize.literal(`CASE WHEN locationCity LIKE '${location}%' THEN 1 ELSE 0 END`),
+        'DESC'
+      ]);
+    }
+    
+    // Priority 2: Top listed providers (within the location)
+    orderClause.push([
+      sequelize.literal('CASE WHEN topListingEndDate > NOW() THEN 1 ELSE 0 END'),
+      'DESC'
+    ]);
+    
+    // Priority 3: Listing priority (Premium = 2, Basic = 1)
+    orderClause.push(['listingPriority', 'DESC']);
+    
+    // Priority 4: Newest first
+    orderClause.push(['createdAt', 'DESC']);
+
     const providers = await ProviderProfile.findAndCountAll({
       where: whereClause,
       include: [
@@ -488,11 +533,25 @@ class ProviderService {
       ],
       limit,
       offset,
-      order: [['createdAt', 'DESC']]
+      order: orderClause
+    });
+
+    // Add computed fields
+    const providersWithStatus = providers.rows.map(provider => {
+      const isTopListed = provider.topListingEndDate && new Date(provider.topListingEndDate) > new Date();
+      const daysRemaining = isTopListed 
+        ? Math.ceil((new Date(provider.topListingEndDate) - new Date()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      return {
+        ...provider.toJSON(),
+        isTopListed,
+        daysRemaining
+      };
     });
 
     return {
-      providers: providers.rows,
+      providers: providersWithStatus,
       totalCount: providers.count,
       totalPages: Math.ceil(providers.count / limit),
       currentPage: page
@@ -580,6 +639,16 @@ class ProviderService {
 
   async createProviderDocument(documentData) {
     try {
+      // Check photo limit if this is a brand image
+      if (documentData.type === 'brand_image' || documentData.documentType === 'brand_image') {
+        const SubscriptionHelper = (await import('../utils/subscriptionHelper.js')).default;
+        const photoCheck = await SubscriptionHelper.canUploadPhoto(documentData.providerId);
+        
+        if (!photoCheck.allowed) {
+          throw new Error(`Photo limit reached. ${photoCheck.reason}. You have ${photoCheck.currentCount}/${photoCheck.maxAllowed} photos.`);
+        }
+      }
+
       const document = await ProviderDocument.create(documentData);
       return document;
     } catch (error) {
@@ -605,6 +674,113 @@ class ProviderService {
       return true;
     } catch (error) {
       console.error('Error deleting provider document:', error);
+      throw error;
+    }
+  }
+
+  async uploadProviderVideo(providerId, videoData) {
+    try {
+      const { videoUrl, videoThumbnail, videoDuration } = videoData;
+
+      // Check if provider can upload video
+      const SubscriptionHelper = (await import('../utils/subscriptionHelper.js')).default;
+      const videoCheck = await SubscriptionHelper.canUploadVideo(providerId);
+
+      if (!videoCheck.allowed) {
+        throw new Error(videoCheck.reason || 'Video upload not allowed');
+      }
+
+      // Validate video duration
+      if (videoDuration > videoCheck.maxDuration) {
+        throw new Error(`Video duration exceeds limit. Maximum ${videoCheck.maxDuration} seconds allowed.`);
+      }
+
+      // Update provider profile with video
+      const provider = await ProviderProfile.findByPk(providerId);
+      if (!provider) {
+        throw new Error('Provider not found');
+      }
+
+      await provider.update({
+        videoUrl,
+        videoThumbnail,
+        videoDuration,
+        videoUploadedAt: new Date()
+      });
+
+      return {
+        success: true,
+        message: 'Video uploaded successfully',
+        data: {
+          videoUrl,
+          videoThumbnail,
+          videoDuration
+        }
+      };
+    } catch (error) {
+      console.error('Error uploading provider video:', error);
+      throw error;
+    }
+  }
+
+  async deleteProviderVideo(providerId) {
+    try {
+      const provider = await ProviderProfile.findByPk(providerId);
+      if (!provider) {
+        throw new Error('Provider not found');
+      }
+
+      await provider.update({
+        videoUrl: null,
+        videoThumbnail: null,
+        videoDuration: null,
+        videoUploadedAt: null
+      });
+
+      return {
+        success: true,
+        message: 'Video deleted successfully'
+      };
+    } catch (error) {
+      console.error('Error deleting provider video:', error);
+      throw error;
+    }
+  }
+
+  async getFeatureLimits(providerId) {
+    try {
+      const SubscriptionHelper = (await import('../utils/subscriptionHelper.js')).default;
+      const limits = await SubscriptionHelper.getFeatureLimits(providerId);
+      
+      // Get current photo count
+      const photoCount = await ProviderDocument.count({
+        where: {
+          providerId,
+          type: 'brand_image'
+        }
+      });
+
+      // Get video status
+      const provider = await ProviderProfile.findByPk(providerId, {
+        attributes: ['videoUrl', 'videoDuration']
+      });
+
+      return {
+        success: true,
+        data: {
+          ...limits,
+          currentPhotoCount: photoCount,
+          photosRemaining: Math.max(0, limits.features.maxPhotos - photoCount),
+          hasVideo: !!provider?.videoUrl,
+          videoDetails: provider?.videoUrl ? {
+            url: provider.videoUrl,
+            thumbnail: provider.videoThumbnail,
+            duration: provider.videoDuration
+          } : null
+        }
+      };
+    } catch (error) {
+      console.error('Error getting feature limits:', error);
       throw error;
     }
   }

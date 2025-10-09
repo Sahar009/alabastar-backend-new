@@ -45,6 +45,16 @@ class SubscriptionService {
         // Don't fail the subscription creation if referral processing fails
       }
 
+      // Update top listing based on subscription plan
+      try {
+        const SubscriptionHelper = (await import('../utils/subscriptionHelper.js')).default;
+        await SubscriptionHelper.updateTopListing(providerId, planId);
+        console.log(`Top listing activated for provider ${providerId}`);
+      } catch (listingError) {
+        console.error('Error updating top listing:', listingError);
+        // Don't fail the subscription creation if top listing fails
+      }
+
       return {
         success: true,
         data: subscription,

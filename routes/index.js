@@ -10,6 +10,7 @@ import reviewRoutes from './reviewRoutes.js';
 import referralRoutes from './referralRoutes.js';
 import subscriptionPlanRoutes from './subscriptionPlanRoutes.js';
 import subscriptionRoutes from './subscriptionRoutes.js';
+import earningsRoutes from './earningsRoutes.js';
 
 const router = (app) => {
   // API routes
@@ -46,6 +47,9 @@ const router = (app) => {
   
   // Subscription routes (for providers)
   app.use('/api/subscriptions', subscriptionRoutes);
+  
+  // Earnings routes (for providers)
+  app.use('/api/earnings', earningsRoutes);
 
   app.get('/api/health', (req, res) => {
     res.status(200).json({
