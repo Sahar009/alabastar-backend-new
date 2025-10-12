@@ -9,11 +9,21 @@ const SavedProvider = sequelize.define('SavedProvider', {
   },
   userId: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    onDelete: 'CASCADE'
   },
   providerId: {
     type: DataTypes.UUID,
-    allowNull: false
+    allowNull: false,
+    references: {
+      model: 'provider_profiles',
+      key: 'id'
+    },
+    onDelete: 'CASCADE'
   }
 }, {
   timestamps: true,
@@ -23,6 +33,18 @@ const SavedProvider = sequelize.define('SavedProvider', {
     { fields: ['providerId'] }
   ]
 });
+
+// Define associations (to be set up in schema/index.js)
+SavedProvider.associate = (models) => {
+  SavedProvider.belongsTo(models.User, {
+    foreignKey: 'userId',
+    as: 'user'
+  });
+  SavedProvider.belongsTo(models.ProviderProfile, {
+    foreignKey: 'providerId',
+    as: 'provider'
+  });
+};
 
 export default SavedProvider;
 

@@ -99,8 +99,10 @@ OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
 Product.hasMany(OrderItem, { foreignKey: 'productId' });
 OrderItem.belongsTo(Product, { foreignKey: 'productId' });
 
-User.belongsToMany(ProviderProfile, { through: SavedProvider, foreignKey: 'userId', otherKey: 'providerId' });
-ProviderProfile.belongsToMany(User, { through: SavedProvider, foreignKey: 'providerId', otherKey: 'userId' });
+User.belongsToMany(ProviderProfile, { through: SavedProvider, foreignKey: 'userId', otherKey: 'providerId', as: 'savedProviders' });
+ProviderProfile.belongsToMany(User, { through: SavedProvider, foreignKey: 'providerId', otherKey: 'userId', as: 'savedByUsers' });
+SavedProvider.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+SavedProvider.belongsTo(ProviderProfile, { foreignKey: 'providerId', as: 'provider' });
 
 User.hasMany(Address, { foreignKey: 'userId' });
 Address.belongsTo(User, { foreignKey: 'userId' });

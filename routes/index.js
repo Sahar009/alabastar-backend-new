@@ -11,6 +11,8 @@ import referralRoutes from './referralRoutes.js';
 import subscriptionPlanRoutes from './subscriptionPlanRoutes.js';
 import subscriptionRoutes from './subscriptionRoutes.js';
 import earningsRoutes from './earningsRoutes.js';
+import dashboardRoutes from './dashboardRoutes.js';
+import favoritesRoutes from './favoritesRoutes.js';
 
 const router = (app) => {
   // API routes
@@ -50,6 +52,12 @@ const router = (app) => {
   
   // Earnings routes (for providers)
   app.use('/api/earnings', earningsRoutes);
+  
+  // Dashboard routes (for providers)
+  app.use('/api/dashboard', dashboardRoutes);
+  
+  // Favorites routes
+  app.use('/api/favorites', favoritesRoutes);
 
   app.get('/api/health', (req, res) => {
     res.status(200).json({
