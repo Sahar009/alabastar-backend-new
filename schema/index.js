@@ -31,6 +31,11 @@ import ReferralCommission from './ReferralCommission.js';
 import Withdrawal from './Withdrawal.js';
 import CorporateRequest from './CorporateRequest.js';
 import ContactMessage from './ContactMessage.js';
+import Conversation from './Conversation.js';
+import ConversationParticipant from './ConversationParticipant.js';
+import Message from './Message.js';
+import MessageReadReceipt from './MessageReadReceipt.js';
+import MessageReaction from './MessageReaction.js';
 
 // Associations
 User.hasOne(Customer, { foreignKey: 'userId', as: 'customer' });
@@ -135,6 +140,52 @@ ReferralCommission.belongsTo(ProviderProfile, { foreignKey: 'referrerId' });
 ProviderSubscription.hasMany(ReferralCommission, { foreignKey: 'subscriptionId' });
 ReferralCommission.belongsTo(ProviderSubscription, { foreignKey: 'subscriptionId' });
 
+// Messaging system associations
+User.hasMany(Conversation, { foreignKey: 'createdBy', as: 'CreatedConversations' });
+Conversation.belongsTo(User, { foreignKey: 'createdBy', as: 'Creator' });
+
+// Many-to-many: Users and Conversations through ConversationParticipant
+User.belongsToMany(Conversation, { 
+  through: ConversationParticipant, 
+  foreignKey: 'userId', 
+  otherKey: 'conversationId',
+  as: 'conversations' 
+});
+
+Conversation.belongsToMany(User, { 
+  through: ConversationParticipant, 
+  foreignKey: 'conversationId', 
+  otherKey: 'userId',
+  as: 'participants' 
+});
+
+ConversationParticipant.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+ConversationParticipant.belongsTo(Conversation, { foreignKey: 'conversationId', as: 'conversation' });
+User.hasMany(ConversationParticipant, { foreignKey: 'userId', as: 'participations' });
+Conversation.hasMany(ConversationParticipant, { foreignKey: 'conversationId', as: 'participantList' });
+
+// Messages
+Conversation.hasMany(Message, { foreignKey: 'conversationId', as: 'messages' });
+Message.belongsTo(Conversation, { foreignKey: 'conversationId', as: 'conversation' });
+User.hasMany(Message, { foreignKey: 'senderId', as: 'sentMessages' });
+Message.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
+
+// Self-referential for reply
+Message.hasMany(Message, { foreignKey: 'replyToId', as: 'replies' });
+Message.belongsTo(Message, { foreignKey: 'replyToId', as: 'replyTo' });
+
+// Read Receipts
+Message.hasMany(MessageReadReceipt, { foreignKey: 'messageId', as: 'readReceipts' });
+MessageReadReceipt.belongsTo(Message, { foreignKey: 'messageId', as: 'message' });
+User.hasMany(MessageReadReceipt, { foreignKey: 'userId', as: 'messageReads' });
+MessageReadReceipt.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+// Reactions
+Message.hasMany(MessageReaction, { foreignKey: 'messageId', as: 'reactions' });
+MessageReaction.belongsTo(Message, { foreignKey: 'messageId', as: 'message' });
+User.hasMany(MessageReaction, { foreignKey: 'userId', as: 'messageReactions' });
+MessageReaction.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 export {
   User,
   Customer,
@@ -168,7 +219,12 @@ export {
   ReferralCommission,
   Withdrawal,
   CorporateRequest,
-  ContactMessage
+  ContactMessage,
+  Conversation,
+  ConversationParticipant,
+  Message,
+  MessageReadReceipt,
+  MessageReaction
 };
 
 

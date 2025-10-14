@@ -4,7 +4,7 @@ import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.j
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
 
-// File filter function
+// File filter function for documents
 const fileFilter = (req, file, cb) => {
   // Allowed file types for KYC documents
   const allowedTypes = [
@@ -22,6 +22,49 @@ const fileFilter = (req, file, cb) => {
     cb(null, true);
   } else {
     cb(new Error(`File type ${file.mimetype} is not allowed. Allowed types: ${allowedTypes.join(', ')}`), false);
+  }
+};
+
+// File filter function for messaging (allows more file types)
+const messagingFileFilter = (req, file, cb) => {
+  // Allowed file types for messaging (images, videos, audio, documents)
+  const allowedTypes = [
+    // Images
+    'image/jpeg',
+    'image/jpg', 
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/bmp',
+    // Videos
+    'video/mp4',
+    'video/mpeg',
+    'video/quicktime',
+    'video/x-msvideo',
+    'video/webm',
+    // Audio
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/wav',
+    'audio/ogg',
+    'audio/webm',
+    // Documents
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+    'application/zip',
+    'application/x-rar-compressed'
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error(`File type ${file.mimetype} is not allowed for messaging.`), false);
   }
 };
 
@@ -57,6 +100,23 @@ export const uploadProviderDocuments = upload.array('documents', 5);
  * Middleware for uploading brand images
  */
 export const uploadBrandImages = upload.array('brandImages', 10);
+
+/**
+ * Multer configuration for messaging
+ */
+const messagingUpload = multer({
+  storage,
+  fileFilter: messagingFileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit for messaging (videos can be large)
+    files: 1
+  }
+});
+
+/**
+ * Middleware for uploading message files (images, videos, audio, documents)
+ */
+export const uploadMessageFile = messagingUpload.single('file');
 
 /**
  * Process uploaded files and upload to Cloudinary

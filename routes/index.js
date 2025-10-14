@@ -13,6 +13,7 @@ import subscriptionRoutes from './subscriptionRoutes.js';
 import earningsRoutes from './earningsRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import favoritesRoutes from './favoritesRoutes.js';
+import messagingRoutes from './messagingRoutes.js';
 
 const router = (app) => {
   // API routes
@@ -58,6 +59,9 @@ const router = (app) => {
   
   // Favorites routes
   app.use('/api/favorites', favoritesRoutes);
+  
+  // Messaging routes
+  app.use('/api/messages', messagingRoutes);
 
   app.get('/api/health', (req, res) => {
     res.status(200).json({

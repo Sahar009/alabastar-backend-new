@@ -639,3 +639,4 @@ FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 For issues or questions about the Favorites API, please contact the development team or create an issue in the project repository.
 
+

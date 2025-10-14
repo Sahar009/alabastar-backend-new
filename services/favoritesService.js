@@ -215,3 +215,4 @@ class FavoritesService {
 
 export default FavoritesService;
 
+
