@@ -25,7 +25,13 @@ const sequelize = new Sequelize(
         require: true,
         rejectUnauthorized: false
       }
-    } : {}
+    } : {},
+    // MySQL charset and collation settings for emoji support
+    define: {
+      charset: 'utf8mb4',
+      collate: 'utf8mb4_unicode_ci',
+      timestamps: true
+    }
   }
 )
 

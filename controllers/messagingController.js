@@ -4,6 +4,18 @@ import { uploadToCloudinary } from '../config/cloudinary.js';
 
 class MessagingController {
   /**
+   * Get message type from MIME type
+   */
+  static getMessageTypeFromMimeType(mimeType) {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType === 'application/pdf') return 'file';
+    if (mimeType.includes('document') || mimeType.includes('text')) return 'file';
+    return 'file'; // Default to file for other types
+  }
+
+  /**
    * Create or get direct conversation
    * POST /api/messages/conversations/direct
    */
@@ -173,7 +185,7 @@ class MessagingController {
           messageData.mediaType = req.file.mimetype;
           messageData.fileName = req.file.originalname;
           messageData.fileSize = req.file.size;
-          messageData.messageType = this.getMessageTypeFromMimeType(req.file.mimetype);
+          messageData.messageType = MessagingController.getMessageTypeFromMimeType(req.file.mimetype);
         } else {
           return res.status(500).json({
             success: false,

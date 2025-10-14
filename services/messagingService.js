@@ -1,4 +1,5 @@
 import { Op } from 'sequelize';
+import sequelize from '../database/db.js';
 import { 
   Conversation, 
   ConversationParticipant, 
@@ -16,23 +17,29 @@ class MessagingService {
    */
   async createOrGetDirectConversation(userId1, userId2) {
     try {
-      // Find existing direct conversation between these users
-      const existingConversation = await Conversation.findOne({
-        where: { type: 'direct' },
-        include: [{
-          model: ConversationParticipant,
-          as: 'participantList',
-          where: {
-            userId: { [Op.in]: [userId1, userId2] },
-            leftAt: null
-          },
-          attributes: ['userId']
-        }],
-        having: this.sequelize.literal('COUNT(DISTINCT participantList.userId) = 2')
+      // Find existing direct conversation between these users using raw SQL
+      const existingConversation = await sequelize.query(`
+        SELECT c.* FROM conversations c
+        WHERE c.type = 'direct'
+        AND c.id IN (
+          SELECT cp1.conversation_id 
+          FROM conversation_participants cp1
+          INNER JOIN conversation_participants cp2 ON cp1.conversation_id = cp2.conversation_id
+          WHERE cp1.user_id = :userId1 AND cp1.left_at IS NULL
+          AND cp2.user_id = :userId2 AND cp2.left_at IS NULL
+          GROUP BY cp1.conversation_id
+          HAVING COUNT(DISTINCT cp1.user_id) = 2
+        )
+        LIMIT 1
+      `, {
+        replacements: { userId1, userId2 },
+        type: sequelize.QueryTypes.SELECT,
+        model: Conversation,
+        mapToModel: true
       });
 
-      if (existingConversation) {
-        return await this.getConversationDetails(existingConversation.id, userId1);
+      if (existingConversation && existingConversation.length > 0) {
+        return await this.getConversationDetails(existingConversation[0].id, userId1);
       }
 
       // Create new conversation
