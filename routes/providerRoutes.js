@@ -38,6 +38,9 @@ router.delete('/:providerId/documents/:documentId', authenticateToken, providerC
 // Get provider feature limits
 router.get('/:providerId/feature-limits', authenticateToken, providerController.getFeatureLimits);
 
+// Get current user's feature limits (for subscription page)
+router.get('/feature-limits', authenticateToken, providerController.getCurrentUserFeatureLimits);
+
 // Upload provider video (Premium feature)
 router.post('/:providerId/video', authenticateToken, providerController.uploadProviderVideo);
 

@@ -346,6 +346,33 @@ class ProviderController {
     }
   }
 
+  async getCurrentUserFeatureLimits(req, res) {
+    try {
+      const userId = req.user.userId;
+
+      // Get provider profile for current user
+      const { ProviderProfile } = await import('../schema/index.js');
+      const providerProfile = await ProviderProfile.findOne({
+        where: { userId }
+      });
+
+      if (!providerProfile) {
+        return messageHandler(res, NOT_FOUND, 'Provider profile not found');
+      }
+
+      const result = await providerService.getFeatureLimits(providerProfile.id);
+
+      if (result.success) {
+        return messageHandler(res, SUCCESS, 'Feature limits retrieved successfully', result.data);
+      } else {
+        return messageHandler(res, BAD_REQUEST, 'Failed to get feature limits');
+      }
+    } catch (error) {
+      console.error('Get current user feature limits error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
   async uploadProviderVideo(req, res) {
     try {
       const { providerId } = req.params;
