@@ -5,8 +5,13 @@ import { uploadProviderDocuments, uploadBrandImages, processUploadedFiles, handl
 
 const router = express.Router();
 
-// Provider registration
+// Provider registration (complete registration)
 router.post('/register', providerController.registerProvider);
+
+// Step-by-step provider registration
+router.post('/register/step/:stepNumber', providerController.saveRegistrationStep);
+router.get('/register/progress', authenticateToken, providerController.getRegistrationProgress);
+router.put('/register/progress', authenticateToken, providerController.updateRegistrationProgress);
 
 // Initialize payment for registration (before provider registration)
 router.post('/initialize-payment', providerController.initializePaymentForRegistration);

@@ -1,4 +1,4 @@
-import { User, ProviderProfile, ProviderDocument } from '../schema/index.js';
+import { User, ProviderProfile, ProviderDocument, ProviderRegistrationProgress } from '../schema/index.js';
 import { Service } from '../schema/index.js';
 import { sendEmail } from '../modules/notifications/email.js';
 import NotificationHelper from '../utils/notificationHelper.js';
@@ -111,6 +111,187 @@ class ProviderService {
     
     // Default: assume it's a local number and add +234
     return '+234' + cleanPhone;
+  }
+
+  // Save registration step progress
+  async saveRegistrationStep(userId, stepNumber, stepData) {
+    try {
+      // Check if user exists
+      const user = await User.findByPk(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Get or create registration progress record
+      let progress = await ProviderRegistrationProgress.findOne({
+        where: { userId }
+      });
+
+      if (!progress) {
+        progress = await ProviderRegistrationProgress.create({
+          userId,
+          currentStep: stepNumber,
+          stepData: {}
+        });
+      }
+
+      // Update step data
+      const updatedStepData = {
+        ...progress.stepData,
+        [`step${stepNumber}`]: stepData
+      };
+
+      // Update current step if this is a higher step
+      const newCurrentStep = Math.max(progress.currentStep, stepNumber);
+
+      await progress.update({
+        currentStep: newCurrentStep,
+        stepData: updatedStepData,
+        lastUpdated: new Date()
+      });
+
+      return {
+        success: true,
+        data: {
+          currentStep: newCurrentStep,
+          stepData: updatedStepData,
+          completedSteps: Object.keys(updatedStepData).length
+        }
+      };
+    } catch (error) {
+      console.error('Error saving registration step:', error);
+      throw error;
+    }
+  }
+
+  // Get registration progress
+  async getRegistrationProgress(userId) {
+    try {
+      const progress = await ProviderRegistrationProgress.findOne({
+        where: { userId },
+        include: [
+          {
+            model: User,
+            as: 'user',
+            attributes: ['id', 'fullName', 'email', 'phone', 'role']
+          }
+        ]
+      });
+
+      if (!progress) {
+        return {
+          success: true,
+          data: {
+            currentStep: 1,
+            stepData: {},
+            completedSteps: 0,
+            isComplete: false
+          }
+        };
+      }
+
+      // Check if registration is complete
+      const isComplete = progress.currentStep >= 5 && 
+                        progress.stepData.step1 && 
+                        progress.stepData.step2 && 
+                        progress.stepData.step3 && 
+                        progress.stepData.step4 && 
+                        progress.stepData.step5;
+
+      return {
+        success: true,
+        data: {
+          currentStep: progress.currentStep,
+          stepData: progress.stepData,
+          completedSteps: Object.keys(progress.stepData).length,
+          isComplete,
+          lastUpdated: progress.lastUpdated
+        }
+      };
+    } catch (error) {
+      console.error('Error getting registration progress:', error);
+      throw error;
+    }
+  }
+
+  // Update registration progress
+  async updateRegistrationProgress(userId, updateData) {
+    try {
+      const progress = await ProviderRegistrationProgress.findOne({
+        where: { userId }
+      });
+
+      if (!progress) {
+        throw new Error('Registration progress not found');
+      }
+
+      // Merge step data
+      const updatedStepData = {
+        ...progress.stepData,
+        ...updateData.stepData
+      };
+
+      // Update current step if provided
+      const newCurrentStep = updateData.currentStep || progress.currentStep;
+
+      await progress.update({
+        currentStep: newCurrentStep,
+        stepData: updatedStepData,
+        lastUpdated: new Date()
+      });
+
+      return {
+        success: true,
+        data: {
+          currentStep: progress.currentStep,
+          stepData: progress.stepData,
+          completedSteps: Object.keys(progress.stepData).length,
+          isComplete: progress.currentStep >= 5
+        }
+      };
+    } catch (error) {
+      console.error('Error updating registration progress:', error);
+      throw error;
+    }
+  }
+
+  // Complete registration from saved progress
+  async completeRegistrationFromProgress(userId) {
+    try {
+      const progress = await ProviderRegistrationProgress.findOne({
+        where: { userId }
+      });
+
+      if (!progress) {
+        throw new Error('Registration progress not found');
+      }
+
+      // Check if all steps are completed
+      if (progress.currentStep < 5 || !progress.stepData.step1 || !progress.stepData.step2 || 
+          !progress.stepData.step3 || !progress.stepData.step4 || !progress.stepData.step5) {
+        throw new Error('All registration steps must be completed');
+      }
+
+      // Merge all step data
+      const allStepData = {
+        ...progress.stepData.step1,
+        ...progress.stepData.step2,
+        ...progress.stepData.step3,
+        ...progress.stepData.step4,
+        ...progress.stepData.step5
+      };
+
+      // Complete the registration
+      const registrationResult = await this.registerProvider(allStepData);
+
+      // Delete the progress record after successful registration
+      await progress.destroy();
+
+      return registrationResult;
+    } catch (error) {
+      console.error('Error completing registration from progress:', error);
+      throw error;
+    }
   }
 
   async registerProvider(providerData) {
@@ -781,6 +962,87 @@ class ProviderService {
       };
     } catch (error) {
       console.error('Error getting feature limits:', error);
+      throw error;
+    }
+  }
+
+  // Create user account and registration progress (for step 1)
+  async createUserAndRegistrationProgress(stepData) {
+    try {
+      const { fullName, email, password, phone, alternativePhone, businessName, referralCode } = stepData;
+
+      // Validate required fields for step 1
+      if (!fullName || !email || !password) {
+        throw new Error('Full name, email, and password are required for step 1');
+      }
+
+      // Check if user already exists
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        throw new Error('User with this email already exists');
+      }
+
+      // Hash password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
+
+      // Create user
+      const user = await User.create({
+        fullName,
+        email,
+        passwordHash,
+        phone: phone || null,
+        alternativePhone: alternativePhone || null,
+        role: 'provider',
+        status: 'active',
+        provider: 'email'
+      });
+
+      // Generate JWT token
+      const token = generateToken({
+        userId: user.id,
+        email: user.email,
+        role: user.role
+      });
+
+      // Create registration progress record
+      const progress = await ProviderRegistrationProgress.create({
+        userId: user.id,
+        currentStep: 1,
+        stepData: {
+          step1: {
+            fullName,
+            email,
+            phone: phone || null,
+            alternativePhone: alternativePhone || null,
+            businessName: businessName || null,
+            referralCode: referralCode || null
+          }
+        },
+        lastUpdated: new Date()
+      });
+
+      return {
+        success: true,
+        data: {
+          token,
+          user: {
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone,
+            role: user.role,
+            status: user.status
+          },
+          registrationProgress: {
+            currentStep: progress.currentStep,
+            stepData: progress.stepData,
+            completedSteps: 1
+          }
+        }
+      };
+    } catch (error) {
+      console.error('Error creating user and registration progress:', error);
       throw error;
     }
   }

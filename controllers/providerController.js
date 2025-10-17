@@ -269,6 +269,75 @@ class ProviderController {
     }
   }
 
+  // Save registration step
+  async saveRegistrationStep(req, res) {
+    try {
+      const { stepNumber } = req.params;
+      const stepData = req.body;
+      const stepNum = parseInt(stepNumber);
+
+      if (!stepNumber || stepNum < 1 || stepNum > 5) {
+        return messageHandler(res, BAD_REQUEST, 'Invalid step number. Must be between 1 and 5');
+      }
+
+      if (stepNum === 1) {
+        // Stage 1: Create user account and registration progress
+        const result = await providerService.createUserAndRegistrationProgress(stepData);
+        return messageHandler(res, CREATED, 'User account created and step 1 saved successfully', result.data);
+      } else {
+        // Stages 2-5: Update existing user's progress (requires authentication)
+        const userId = req.user?.id;
+        
+        if (!userId) {
+          return messageHandler(res, BAD_REQUEST, 'User authentication required for steps 2-5');
+        }
+
+        const result = await providerService.saveRegistrationStep(userId, stepNum, stepData);
+        return messageHandler(res, SUCCESS, `Step ${stepNumber} saved successfully`, result.data);
+      }
+    } catch (error) {
+      console.error('Error saving registration step:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
+  // Get registration progress
+  async getRegistrationProgress(req, res) {
+    try {
+      const userId = req.user?.id; // From authentication middleware
+
+      if (!userId) {
+        return messageHandler(res, BAD_REQUEST, 'User authentication required');
+      }
+
+      const result = await providerService.getRegistrationProgress(userId);
+      
+      return messageHandler(res, SUCCESS, 'Registration progress retrieved successfully', result.data);
+    } catch (error) {
+      console.error('Error getting registration progress:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
+  // Update registration progress
+  async updateRegistrationProgress(req, res) {
+    try {
+      const userId = req.user?.id; // From authentication middleware
+      const updateData = req.body;
+
+      if (!userId) {
+        return messageHandler(res, BAD_REQUEST, 'User authentication required');
+      }
+
+      const result = await providerService.updateRegistrationProgress(userId, updateData);
+      
+      return messageHandler(res, SUCCESS, 'Registration progress updated successfully', result.data);
+    } catch (error) {
+      console.error('Error updating registration progress:', error);
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
   async uploadProviderDocument(req, res) {
     try {
       const { providerId } = req.params;

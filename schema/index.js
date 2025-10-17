@@ -36,6 +36,7 @@ import ConversationParticipant from './ConversationParticipant.js';
 import Message from './Message.js';
 import MessageReadReceipt from './MessageReadReceipt.js';
 import MessageReaction from './MessageReaction.js';
+import ProviderRegistrationProgress from './ProviderRegistrationProgress.js';
 
 // Associations
 User.hasOne(Customer, { foreignKey: 'userId', as: 'customer' });
@@ -186,6 +187,10 @@ MessageReaction.belongsTo(Message, { foreignKey: 'messageId', as: 'message' });
 User.hasMany(MessageReaction, { foreignKey: 'userId', as: 'messageReactions' });
 MessageReaction.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+// ProviderRegistrationProgress associations
+User.hasOne(ProviderRegistrationProgress, { foreignKey: 'userId', as: 'registrationProgress' });
+ProviderRegistrationProgress.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 export {
   User,
   Customer,
@@ -224,7 +229,8 @@ export {
   ConversationParticipant,
   Message,
   MessageReadReceipt,
-  MessageReaction
+  MessageReaction,
+  ProviderRegistrationProgress
 };
 
 

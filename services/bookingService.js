@@ -16,12 +16,11 @@ export const createBooking = async (bookingData) => {
       locationState,
       latitude,
       longitude,
-      totalAmount,
       notes
     } = bookingData;
 
     // Validate required fields
-    if (!userId || !providerId || !scheduledAt || !totalAmount) {
+    if (!userId || !providerId || !scheduledAt) {
       return { success: false, message: 'Missing required fields', statusCode: 400 };
     }
 
@@ -43,6 +42,8 @@ export const createBooking = async (bookingData) => {
 
     // Check if service exists and belongs to provider profile (only if serviceId is provided)
     let service = null;
+    let totalAmount = 0;
+    
     if (serviceId) {
       service = await Service.findOne({
         where: {
@@ -55,6 +56,12 @@ export const createBooking = async (bookingData) => {
       if (!service) {
         return { success: false, message: 'Service not found or not available', statusCode: 404 };
       }
+      
+      // Set total amount based on service price
+      totalAmount = service.basePrice || 0;
+    } else {
+      // If no service selected, use provider's starting price
+      totalAmount = provider.startingPrice || 0;
     }
 
     // provider already resolved above
@@ -90,7 +97,7 @@ export const createBooking = async (bookingData) => {
       locationState,
       latitude: latitude ? parseFloat(latitude) : null,
       longitude: longitude ? parseFloat(longitude) : null,
-      totalAmount: parseFloat(totalAmount),
+      totalAmount: totalAmount,
       notes
     });
 
