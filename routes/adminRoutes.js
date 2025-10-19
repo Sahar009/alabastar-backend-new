@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
-import { User, ProviderProfile, Booking, Payment, Review, Notification, Customer, ProviderSubscription, ProviderRegistrationProgress } from '../schema/index.js';
+import { User, ProviderProfile, Booking, Payment, Review, Notification, Customer, ProviderSubscription, ProviderRegistrationProgress, ServiceCategory, Service, SubscriptionPlan } from '../schema/index.js';
 import { authenticateAdmin, authenticateSuperAdmin, adminRateLimit } from '../middleware/adminAuth.js';
 
 const router = Router();
@@ -1609,6 +1609,1066 @@ router.put('/bookings/:id/payment-status', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update booking payment status',
+      error: error.message
+    });
+  }
+});
+
+// ==================== SERVICE CATEGORIES MANAGEMENT ====================
+
+// Get all service categories with pagination and filters
+router.get('/categories', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      isActive = '', 
+      sortBy = 'createdAt', 
+      sortOrder = 'DESC' 
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+    const whereClause = {};
+
+    // Search filter
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.like]: `%${search}%` } },
+        { description: { [Op.like]: `%${search}%` } },
+        { slug: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    // Active status filter
+    if (isActive !== '') {
+      whereClause.isActive = isActive === 'true';
+    }
+
+    const { count, rows: categories } = await ServiceCategory.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: Service,
+          as: 'Services',
+          attributes: ['id'],
+          where: { isActive: true },
+          required: false
+        }
+      ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [[sortBy, sortOrder.toUpperCase()]],
+      attributes: [
+        'id', 'name', 'slug', 'description', 'icon', 'isActive', 'createdAt', 'updatedAt'
+      ]
+    });
+
+    // Add service count to each category
+    const categoriesWithCounts = categories.map(category => ({
+      ...category.toJSON(),
+      serviceCount: category.Services ? category.Services.length : 0
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        categories: categoriesWithCounts,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(count / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get categories error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch categories',
+      error: error.message
+    });
+  }
+});
+
+// Get single category with services
+router.get('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const category = await ServiceCategory.findByPk(id, {
+      include: [
+        {
+          model: Service,
+          as: 'Services',
+          include: [
+            {
+              model: ProviderProfile,
+              as: 'Provider',
+              attributes: ['id', 'businessName', 'verificationStatus'],
+              include: [
+                {
+                  model: User,
+                  attributes: ['id', 'fullName', 'email']
+                }
+              ]
+            }
+          ],
+          attributes: [
+            'id', 'title', 'description', 'pricingType', 'basePrice', 
+            'isActive', 'photos', 'createdAt', 'updatedAt'
+          ],
+          order: [['createdAt', 'DESC']]
+        }
+      ],
+      attributes: [
+        'id', 'name', 'slug', 'description', 'icon', 'isActive', 'createdAt', 'updatedAt'
+      ]
+    });
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: category
+    });
+
+  } catch (error) {
+    console.error('Get category by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch category details',
+      error: error.message
+    });
+  }
+});
+
+// Create new category
+router.post('/categories', async (req, res) => {
+  try {
+    const { name, description, icon, isActive = true } = req.body;
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category name is required'
+      });
+    }
+
+    // Generate slug from name
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    // Check if category with same name or slug already exists
+    const existingCategory = await ServiceCategory.findOne({
+      where: {
+        [Op.or]: [
+          { name: name },
+          { slug: slug }
+        ]
+      }
+    });
+
+    if (existingCategory) {
+      return res.status(400).json({
+        success: false,
+        message: 'Category with this name already exists'
+      });
+    }
+
+    const category = await ServiceCategory.create({
+      name,
+      slug,
+      description,
+      icon,
+      isActive
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Category created successfully',
+      data: category
+    });
+
+  } catch (error) {
+    console.error('Create category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create category',
+      error: error.message
+    });
+  }
+});
+
+// Update category
+router.put('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, icon, isActive } = req.body;
+
+    const category = await ServiceCategory.findByPk(id);
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    // Generate new slug if name is being updated
+    let slug = category.slug;
+    if (name && name !== category.name) {
+      slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      
+      // Check if new slug already exists
+      const existingCategory = await ServiceCategory.findOne({
+        where: {
+          slug: slug,
+          id: { [Op.ne]: id }
+        }
+      });
+
+      if (existingCategory) {
+        return res.status(400).json({
+          success: false,
+          message: 'Category with this name already exists'
+        });
+      }
+    }
+
+    await category.update({
+      name: name || category.name,
+      slug: slug,
+      description: description !== undefined ? description : category.description,
+      icon: icon !== undefined ? icon : category.icon,
+      isActive: isActive !== undefined ? isActive : category.isActive
+    });
+
+    res.json({
+      success: true,
+      message: 'Category updated successfully',
+      data: category
+    });
+
+  } catch (error) {
+    console.error('Update category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update category',
+      error: error.message
+    });
+  }
+});
+
+// Delete category
+router.delete('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const category = await ServiceCategory.findByPk(id);
+
+    if (!category) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found'
+      });
+    }
+
+    // Check if category has active services
+    const serviceCount = await Service.count({
+      where: {
+        categoryId: id,
+        isActive: true
+      }
+    });
+
+    if (serviceCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete category. It has ${serviceCount} active services. Please deactivate or delete the services first.`
+      });
+    }
+
+    await category.destroy();
+
+    res.json({
+      success: true,
+      message: 'Category deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete category error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete category',
+      error: error.message
+    });
+  }
+});
+
+// ==================== SERVICES MANAGEMENT ====================
+
+// Get all services with pagination and filters
+router.get('/services', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      categoryId = '', 
+      providerId = '', 
+      isActive = '', 
+      sortBy = 'createdAt', 
+      sortOrder = 'DESC' 
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+    const whereClause = {};
+
+    // Search filter
+    if (search) {
+      whereClause[Op.or] = [
+        { title: { [Op.like]: `%${search}%` } },
+        { description: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    // Category filter
+    if (categoryId) {
+      whereClause.categoryId = categoryId;
+    }
+
+    // Provider filter
+    if (providerId) {
+      whereClause.providerId = providerId;
+    }
+
+    // Active status filter
+    if (isActive !== '') {
+      whereClause.isActive = isActive === 'true';
+    }
+
+    const { count, rows: services } = await Service.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: ServiceCategory,
+          as: 'Category',
+          attributes: ['id', 'name', 'slug', 'icon']
+        },
+        {
+          model: ProviderProfile,
+          as: 'Provider',
+          attributes: ['id', 'businessName', 'verificationStatus'],
+          include: [
+            {
+              model: User,
+              attributes: ['id', 'fullName', 'email', 'phone']
+            }
+          ]
+        }
+      ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [[sortBy, sortOrder.toUpperCase()]],
+      attributes: [
+        'id', 'title', 'description', 'pricingType', 'basePrice', 
+        'isActive', 'photos', 'createdAt', 'updatedAt'
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        services,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(count / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get services error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch services',
+      error: error.message
+    });
+  }
+});
+
+// Get single service with details
+router.get('/services/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const service = await Service.findByPk(id, {
+      include: [
+        {
+          model: ServiceCategory,
+          as: 'Category',
+          attributes: ['id', 'name', 'slug', 'description', 'icon']
+        },
+        {
+          model: ProviderProfile,
+          as: 'Provider',
+          attributes: [
+            'id', 'businessName', 'category', 'verificationStatus', 
+            'locationCity', 'locationState', 'bio'
+          ],
+          include: [
+            {
+              model: User,
+              attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl']
+            }
+          ]
+        }
+      ],
+      attributes: [
+        'id', 'title', 'description', 'pricingType', 'basePrice', 
+        'isActive', 'photos', 'createdAt', 'updatedAt'
+      ]
+    });
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: service
+    });
+
+  } catch (error) {
+    console.error('Get service by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch service details',
+      error: error.message
+    });
+  }
+});
+
+// Update service status
+router.put('/services/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isActive must be a boolean value'
+      });
+    }
+
+    const service = await Service.findByPk(id);
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Service not found'
+      });
+    }
+
+    await service.update({ isActive });
+
+    res.json({
+      success: true,
+      message: `Service ${isActive ? 'activated' : 'deactivated'} successfully`,
+      data: { service: { id: service.id, isActive: service.isActive } }
+    });
+
+  } catch (error) {
+    console.error('Update service status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update service status',
+      error: error.message
+    });
+  }
+});
+
+// ==================== SUBSCRIPTION PLANS MANAGEMENT ====================
+
+// Get all subscription plans with pagination and filters
+router.get('/subscription-plans', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      isActive = '', 
+      interval = '',
+      sortBy = 'createdAt', 
+      sortOrder = 'DESC' 
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+    const whereClause = {};
+
+    // Search filter
+    if (search) {
+      whereClause[Op.or] = [
+        { name: { [Op.like]: `%${search}%` } },
+        { slug: { [Op.like]: `%${search}%` } }
+      ];
+    }
+
+    // Active status filter
+    if (isActive !== '') {
+      whereClause.isActive = isActive === 'true';
+    }
+
+    // Interval filter
+    if (interval) {
+      whereClause.interval = interval;
+    }
+
+    const { count, rows: plans } = await SubscriptionPlan.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: ProviderSubscription,
+          as: 'ProviderSubscriptions',
+          attributes: ['id'],
+          where: { status: 'active' },
+          required: false
+        }
+      ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [[sortBy, sortOrder.toUpperCase()]],
+      attributes: [
+        'id', 'name', 'slug', 'price', 'interval', 'benefits', 'features', 'isActive', 'createdAt', 'updatedAt'
+      ]
+    });
+
+    // Add subscription count to each plan
+    const plansWithCounts = plans.map(plan => ({
+      ...plan.toJSON(),
+      activeSubscriptions: plan.ProviderSubscriptions ? plan.ProviderSubscriptions.length : 0
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        plans: plansWithCounts,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(count / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get subscription plans error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch subscription plans',
+      error: error.message
+    });
+  }
+});
+
+// Get single subscription plan
+router.get('/subscription-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const plan = await SubscriptionPlan.findByPk(id, {
+      include: [
+        {
+          model: ProviderSubscription,
+          as: 'ProviderSubscriptions',
+          include: [
+            {
+              model: ProviderProfile,
+              as: 'Provider',
+              attributes: ['id', 'businessName', 'verificationStatus'],
+              include: [
+                {
+                  model: User,
+                  attributes: ['id', 'fullName', 'email']
+                }
+              ]
+            }
+          ],
+          attributes: [
+            'id', 'status', 'currentPeriodStart', 'currentPeriodEnd', 
+            'autoRenew', 'createdAt', 'updatedAt'
+          ],
+          order: [['createdAt', 'DESC']]
+        }
+      ],
+      attributes: [
+        'id', 'name', 'slug', 'price', 'interval', 'benefits', 'features', 'isActive', 'createdAt', 'updatedAt'
+      ]
+    });
+
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription plan not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: plan
+    });
+
+  } catch (error) {
+    console.error('Get subscription plan by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch subscription plan details',
+      error: error.message
+    });
+  }
+});
+
+// Create new subscription plan
+router.post('/subscription-plans', async (req, res) => {
+  try {
+    const { name, price, interval, benefits, features, isActive = true } = req.body;
+
+    // Validate required fields
+    if (!name || !price || !interval) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name, price, and interval are required'
+      });
+    }
+
+    // Generate slug from name
+    const slug = name.toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim('-');
+
+    // Check if plan with same name or slug already exists
+    const existingPlan = await SubscriptionPlan.findOne({
+      where: {
+        [Op.or]: [
+          { name: name },
+          { slug: slug }
+        ]
+      }
+    });
+
+    if (existingPlan) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subscription plan with this name or slug already exists'
+      });
+    }
+
+    const plan = await SubscriptionPlan.create({
+      name,
+      slug,
+      price,
+      interval,
+      benefits: benefits || [],
+      features: features || {
+        maxPhotos: 5,
+        maxVideos: 0,
+        videoMaxDuration: 0,
+        topListingDays: 14,
+        rewardsAccess: ['monthly'],
+        promotionChannels: ['youtube'],
+        promotionEvents: ['special'],
+        priority: 1
+      },
+      isActive
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Subscription plan created successfully',
+      data: plan
+    });
+
+  } catch (error) {
+    console.error('Create subscription plan error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create subscription plan',
+      error: error.message
+    });
+  }
+});
+
+// Update subscription plan
+router.put('/subscription-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, price, interval, benefits, features, isActive } = req.body;
+
+    const plan = await SubscriptionPlan.findByPk(id);
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription plan not found'
+      });
+    }
+
+    // If name is being updated, generate new slug
+    let slug = plan.slug;
+    if (name && name !== plan.name) {
+      slug = name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim('-');
+
+      // Check if new slug already exists
+      const existingPlan = await SubscriptionPlan.findOne({
+        where: {
+          slug: slug,
+          id: { [Op.ne]: id }
+        }
+      });
+
+      if (existingPlan) {
+        return res.status(400).json({
+          success: false,
+          message: 'Subscription plan with this slug already exists'
+        });
+      }
+    }
+
+    await plan.update({
+      name: name || plan.name,
+      slug: slug,
+      price: price !== undefined ? price : plan.price,
+      interval: interval || plan.interval,
+      benefits: benefits !== undefined ? benefits : plan.benefits,
+      features: features !== undefined ? features : plan.features,
+      isActive: isActive !== undefined ? isActive : plan.isActive
+    });
+
+    res.json({
+      success: true,
+      message: 'Subscription plan updated successfully',
+      data: plan
+    });
+
+  } catch (error) {
+    console.error('Update subscription plan error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update subscription plan',
+      error: error.message
+    });
+  }
+});
+
+// Delete subscription plan
+router.delete('/subscription-plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const plan = await SubscriptionPlan.findByPk(id);
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription plan not found'
+      });
+    }
+
+    // Check if plan has active subscriptions
+    const activeSubscriptionsCount = await ProviderSubscription.count({
+      where: {
+        planId: id,
+        status: 'active'
+      }
+    });
+
+    if (activeSubscriptionsCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete plan. It has ${activeSubscriptionsCount} active subscription(s). Please cancel or transfer the subscriptions first.`
+      });
+    }
+
+    await plan.destroy();
+
+    res.json({
+      success: true,
+      message: 'Subscription plan deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete subscription plan error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete subscription plan',
+      error: error.message
+    });
+  }
+});
+
+// Toggle subscription plan status
+router.put('/subscription-plans/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isActive must be a boolean value'
+      });
+    }
+
+    const plan = await SubscriptionPlan.findByPk(id);
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription plan not found'
+      });
+    }
+
+    await plan.update({ isActive });
+
+    res.json({
+      success: true,
+      message: `Subscription plan ${isActive ? 'activated' : 'deactivated'} successfully`,
+      data: {
+        id: plan.id,
+        name: plan.name,
+        isActive: plan.isActive
+      }
+    });
+
+  } catch (error) {
+    console.error('Toggle subscription plan status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to toggle subscription plan status',
+      error: error.message
+    });
+  }
+});
+
+// ==================== PROVIDER SUBSCRIPTIONS MANAGEMENT ====================
+
+// Get all provider subscriptions with pagination and filters
+router.get('/subscriptions', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      status = '', 
+      planId = '',
+      sortBy = 'createdAt', 
+      sortOrder = 'DESC' 
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+    const whereClause = {};
+
+    // Status filter
+    if (status) {
+      whereClause.status = status;
+    }
+
+    // Plan filter
+    if (planId) {
+      whereClause.planId = planId;
+    }
+
+    const { count, rows: subscriptions } = await ProviderSubscription.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: ProviderProfile,
+          as: 'ProviderProfile',
+          attributes: ['id', 'businessName', 'verificationStatus'],
+          include: [
+            {
+              model: User,
+              attributes: ['id', 'fullName', 'email'],
+              where: search ? {
+                [Op.or]: [
+                  { fullName: { [Op.like]: `%${search}%` } },
+                  { email: { [Op.like]: `%${search}%` } }
+                ]
+              } : undefined,
+              required: search ? true : false
+            }
+          ],
+          required: search ? true : false
+        },
+        {
+          model: SubscriptionPlan,
+          as: 'SubscriptionPlan',
+          attributes: ['id', 'name', 'slug', 'price', 'interval', 'features']
+        }
+      ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [[sortBy, sortOrder.toUpperCase()]],
+      attributes: [
+        'id', 'status', 'currentPeriodStart', 'currentPeriodEnd', 
+        'autoRenew', 'metadata', 'createdAt', 'updatedAt'
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        subscriptions,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(count / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get subscriptions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch subscriptions',
+      error: error.message
+    });
+  }
+});
+
+// Get single subscription with details
+router.get('/subscriptions/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const subscription = await ProviderSubscription.findByPk(id, {
+      include: [
+        {
+          model: ProviderProfile,
+          as: 'ProviderProfile',
+          attributes: [
+            'id', 'businessName', 'verificationStatus', 'businessAddress', 
+            'businessPhone', 'businessEmail', 'yearsOfExperience'
+          ],
+          include: [
+            {
+              model: User,
+              attributes: ['id', 'fullName', 'email', 'phone']
+            }
+          ]
+        },
+        {
+          model: SubscriptionPlan,
+          as: 'SubscriptionPlan',
+          attributes: ['id', 'name', 'slug', 'price', 'interval', 'benefits', 'features']
+        }
+      ],
+      attributes: [
+        'id', 'status', 'currentPeriodStart', 'currentPeriodEnd', 
+        'autoRenew', 'metadata', 'createdAt', 'updatedAt'
+      ]
+    });
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: subscription
+    });
+
+  } catch (error) {
+    console.error('Get subscription by ID error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch subscription details',
+      error: error.message
+    });
+  }
+});
+
+// Update subscription status
+router.put('/subscriptions/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const subscription = await ProviderSubscription.findByPk(id);
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    await subscription.update({ status });
+
+    res.json({
+      success: true,
+      message: `Subscription ${status} successfully`,
+      data: subscription
+    });
+
+  } catch (error) {
+    console.error('Update subscription status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update subscription status',
+      error: error.message
+    });
+  }
+});
+
+// Update subscription auto-renewal
+router.put('/subscriptions/:id/auto-renew', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { autoRenew } = req.body;
+
+    const subscription = await ProviderSubscription.findByPk(id);
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    await subscription.update({ autoRenew });
+
+    res.json({
+      success: true,
+      message: `Auto-renewal ${autoRenew ? 'enabled' : 'disabled'} successfully`,
+      data: subscription
+    });
+
+  } catch (error) {
+    console.error('Update subscription auto-renewal error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update subscription auto-renewal',
       error: error.message
     });
   }
