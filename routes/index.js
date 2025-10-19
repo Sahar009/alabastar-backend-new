@@ -14,6 +14,8 @@ import earningsRoutes from './earningsRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import favoritesRoutes from './favoritesRoutes.js';
 import messagingRoutes from './messagingRoutes.js';
+import adminAuthRoutes from './adminAuthRoutes.js';
+import adminRoutes from './adminRoutes.js';
 
 const router = (app) => {
   // API routes
@@ -62,6 +64,12 @@ const router = (app) => {
   
   // Messaging routes
   app.use('/api/messages', messagingRoutes);
+  
+  // Admin authentication routes
+  app.use('/api/admin/auth', adminAuthRoutes);
+  
+  // Admin management routes
+  app.use('/api/admin', adminRoutes);
 
   app.get('/api/health', (req, res) => {
     res.status(200).json({

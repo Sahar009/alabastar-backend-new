@@ -19,7 +19,8 @@
     "test-referral": "node test-referral-system.js",
     "create-test-providers": "node create-test-providers.js",
     "generate-test-codes": "node generate-test-referral-codes.js",
-    "test-referral-commission": "node test-referral-commission-flow.js"
+    "test-referral-commission": "node test-referral-commission-flow.js",
+    "setup-admin": "node scripts/setupAdmin.js"
   },
   "keywords": [],
   "author": "Dev sahar",

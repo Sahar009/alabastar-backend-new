@@ -13,7 +13,7 @@ import './schema/index.js';
 
 const app = express();
 const httpServer = createServer(app);
-const PORT = process.env.PORT || 5000; 
+const PORT = config.server.port; 
 
 app.use(helmet());
 
