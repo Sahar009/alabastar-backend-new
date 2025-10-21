@@ -25,6 +25,51 @@ class PaymentController {
     }
   }
 
+  async completeProviderRegistration(req, res) {
+    try {
+      const { reference } = req.params;
+      
+      if (!reference) {
+        return messageHandler(res, BAD_REQUEST, 'Payment reference is required');
+      }
+
+      console.log('Completing provider registration for reference:', reference);
+
+      // First verify the payment
+      const verificationResult = await paystackService.verifyTransaction(reference);
+      
+      if (!verificationResult.success) {
+        return messageHandler(res, BAD_REQUEST, 'Payment verification failed');
+      }
+
+      const paymentData = verificationResult.data;
+      
+      // Check if payment was successful
+      if (paymentData.status !== 'success') {
+        return messageHandler(res, BAD_REQUEST, 'Payment was not successful');
+      }
+
+      // Process the successful payment (same logic as webhook)
+      try {
+        console.log('Processing payment data:', JSON.stringify(paymentData, null, 2));
+        await paystackService.handleSuccessfulPayment(paymentData);
+        
+        return messageHandler(res, SUCCESS, 'Provider registration completed successfully', {
+          reference,
+          status: 'completed'
+        });
+      } catch (processingError) {
+        console.error('Error processing payment completion:', processingError);
+        console.error('Processing error details:', processingError.message);
+        console.error('Processing error stack:', processingError.stack);
+        return messageHandler(res, BAD_REQUEST, `Failed to complete registration: ${processingError.message}`);
+      }
+    } catch (error) {
+      console.error('Complete provider registration error:', error);
+      return messageHandler(res, BAD_REQUEST, 'Failed to complete registration');
+    }
+  }
+
   async handleWebhook(req, res) {
     try {
       const payload = req.body;

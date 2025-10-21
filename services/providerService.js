@@ -191,12 +191,10 @@ class ProviderService {
       }
 
       // Check if registration is complete
+      // Registration is complete if currentStep is 5 and payment is completed
       const isComplete = progress.currentStep >= 5 && 
-                        progress.stepData.step1 && 
-                        progress.stepData.step2 && 
-                        progress.stepData.step3 && 
-                        progress.stepData.step4 && 
-                        progress.stepData.step5;
+                        progress.stepData.step4?.paymentCompleted === true &&
+                        progress.stepData.step5?.paymentCompleted === true;
 
       return {
         success: true,

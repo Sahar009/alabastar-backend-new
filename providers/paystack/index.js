@@ -81,7 +81,9 @@ class PaystackService {
                     full_name: data.full_name,
                     phone: data.phone,
                     category: data.category,
-                    registration_type: 'provider_registration'
+                    registration_type: 'provider_registration',
+                    subscription_plan_id: data.registration_data?.subscriptionPlanId,
+                    registration_data: data.registration_data
                 }
             };
 
@@ -267,7 +269,7 @@ class PaystackService {
             });
 
             // Import models here to avoid circular dependency
-            const { User, ProviderProfile, Payment } = await import('../../models/index.js');
+            const { User, ProviderProfile, Payment } = await import('../../schema/index.js');
             
             // Create payment record
             await Payment.create({
@@ -306,7 +308,32 @@ class PaystackService {
                         { where: { id: registrationResult.providerProfile.id } }
                     );
                     
-                    console.log(`Provider ${registrationResult.providerProfile.id} registered, subscription created, and payment completed successfully`);
+                    // Update registration progress to mark step 4 (subscription plan) as completed
+                    const { ProviderRegistrationProgress } = await import('../../schema/index.js');
+                    await ProviderRegistrationProgress.update(
+                        { 
+                            currentStep: 5, // Set to step 5 (maximum allowed)
+                            isComplete: true, // Mark registration as complete
+                            stepData: {
+                                ...registrationResult.registrationProgress.stepData,
+                                step4: {
+                                    ...registrationResult.registrationProgress.stepData.step4,
+                                    subscriptionPlanId: metadata.subscription_plan_id,
+                                    paymentCompleted: true,
+                                    paymentReference: reference
+                                },
+                                step5: {
+                                    paymentCompleted: true,
+                                    paymentReference: reference,
+                                    completedAt: new Date()
+                                }
+                            },
+                            lastUpdated: new Date()
+                        },
+                        { where: { userId: registrationResult.user.id } }
+                    );
+                    
+                    console.log(`Provider ${registrationResult.providerProfile.id} registered, subscription created, payment completed, and registration progress updated successfully`);
                 } catch (registrationError) {
                     console.error('Error registering provider after payment:', registrationError);
                     // Payment is successful but registration failed - this needs manual intervention
@@ -321,7 +348,33 @@ class PaystackService {
                     { where: { id: metadata.provider_id } }
                 );
                 
-                console.log(`Provider ${metadata.provider_id} payment completed successfully`);
+                // Update registration progress to mark step 4 (subscription plan) as completed
+                const { ProviderRegistrationProgress } = await import('../../schema/index.js');
+                const provider = await ProviderProfile.findByPk(metadata.provider_id);
+                if (provider) {
+                    await ProviderRegistrationProgress.update(
+                        { 
+                            currentStep: 5, // Set to step 5 (maximum allowed)
+                            isComplete: true, // Mark registration as complete
+                            stepData: {
+                                step4: {
+                                    subscriptionPlanId: metadata.subscription_plan_id,
+                                    paymentCompleted: true,
+                                    paymentReference: reference
+                                },
+                                step5: {
+                                    paymentCompleted: true,
+                                    paymentReference: reference,
+                                    completedAt: new Date()
+                                }
+                            },
+                            lastUpdated: new Date()
+                        },
+                        { where: { userId: provider.userId } }
+                    );
+                }
+                
+                console.log(`Provider ${metadata.provider_id} payment completed and registration progress updated successfully`);
             }
 
             return { success: true, message: 'Payment processed successfully' };
@@ -343,7 +396,7 @@ class PaystackService {
             });
 
             // Import models here to avoid circular dependency
-            const { Payment } = await import('../../models/index.js');
+            const { Payment } = await import('../../schema/index.js');
             
             // Create payment record for failed payment
             await Payment.create({
