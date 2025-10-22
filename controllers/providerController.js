@@ -134,6 +134,34 @@ class ProviderController {
     }
   }
 
+  async updateCurrentProviderProfile(req, res) {
+    try {
+      const userId = req.user.id;
+      const updateData = req.body;
+      
+      console.log('Updating current provider profile for user:', userId);
+      console.log('Update data:', updateData);
+
+      // Find the provider profile for the current user
+      const { ProviderProfile } = await import('../schema/index.js');
+      const providerProfile = await ProviderProfile.findOne({ where: { userId } });
+      
+      if (!providerProfile) {
+        return messageHandler(res, NOT_FOUND, 'Provider profile not found for current user');
+      }
+
+      const updatedProvider = await providerService.updateProviderProfile(providerProfile.id, updateData);
+      
+      return messageHandler(res, SUCCESS, 'Provider profile updated successfully', updatedProvider);
+    } catch (error) {
+      console.error('Update current provider profile error:', error);
+      if (error.message === 'Provider not found') {
+        return messageHandler(res, NOT_FOUND, error.message);
+      }
+      return messageHandler(res, BAD_REQUEST, error.message);
+    }
+  }
+
   async getProvidersByCategory(req, res) {
     try {
       const { category } = req.params;

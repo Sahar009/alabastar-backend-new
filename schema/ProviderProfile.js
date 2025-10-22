@@ -36,6 +36,12 @@ const ProviderProfile = sequelize.define('ProviderProfile', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  paymentStatus: {
+    type: DataTypes.ENUM('pending', 'paid', 'failed'),
+    defaultValue: 'pending',
+    allowNull: false,
+    comment: 'Payment status for provider subscription'
+  },
   locationCity: {
     type: DataTypes.STRING(100),
     allowNull: true

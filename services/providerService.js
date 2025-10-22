@@ -164,6 +164,90 @@ class ProviderService {
     }
   }
 
+  // Create provider profile from payment data (for payment completion)
+  async createProviderProfileFromPaymentData(userId, registrationData, paymentReference) {
+    try {
+      console.log('Creating provider profile from payment data for user:', userId);
+      
+      // Check if provider profile already exists
+      const existingProfile = await ProviderProfile.findOne({ where: { userId } });
+      if (existingProfile) {
+        return {
+          success: true,
+          providerProfile: existingProfile,
+          message: 'Provider profile already exists'
+        };
+      }
+
+      // Generate unique referral code
+      const referralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+      
+      // Create provider profile
+      const providerProfile = await ProviderProfile.create({
+        userId,
+        businessName: registrationData.businessName,
+        category: registrationData.category,
+        subcategories: registrationData.subcategories,
+        bio: registrationData.bio || '',
+        locationCity: registrationData.locationCity,
+        locationState: registrationData.locationState,
+        latitude: registrationData.latitude,
+        longitude: registrationData.longitude,
+        verificationStatus: 'pending',
+        paymentStatus: 'paid',
+        referralCode: referralCode,
+        portfolio: {
+          documents: registrationData.documents || [],
+          brandImages: registrationData.brandImages || []
+        }
+      });
+
+      console.log('Provider profile created:', {
+        id: providerProfile.id,
+        businessName: providerProfile.businessName,
+        referralCode: providerProfile.referralCode
+      });
+
+      // Create subscription
+      const { SubscriptionPlan, ProviderSubscription } = await import('../schema/index.js');
+      const subscriptionPlan = await SubscriptionPlan.findByPk(registrationData.subscriptionPlanId);
+      
+      if (subscriptionPlan) {
+        const subscription = await ProviderSubscription.create({
+          providerId: providerProfile.id,
+          planId: subscriptionPlan.id,
+          status: 'active',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          autoRenew: true,
+          metadata: {
+            registrationPaymentReference: paymentReference,
+            planName: subscriptionPlan.name,
+            planPrice: subscriptionPlan.price
+          }
+        });
+        
+        console.log('Subscription created:', {
+          id: subscription.id,
+          planName: subscriptionPlan.name,
+          status: subscription.status
+        });
+      }
+
+      return {
+        success: true,
+        providerProfile,
+        subscription: subscriptionPlan ? await ProviderSubscription.findOne({ 
+          where: { providerId: providerProfile.id },
+          order: [['createdAt', 'DESC']]
+        }) : null
+      };
+    } catch (error) {
+      console.error('Error creating provider profile from payment data:', error);
+      throw error;
+    }
+  }
+
   // Get registration progress
   async getRegistrationProgress(userId) {
     try {
@@ -186,6 +270,59 @@ class ProviderService {
             stepData: {},
             completedSteps: 0,
             isComplete: false
+          }
+        };
+      }
+
+      // Check if user has a provider profile and if payment is completed
+      const providerProfile = await ProviderProfile.findOne({ where: { userId } });
+      if (providerProfile && providerProfile.paymentStatus === 'paid' && !progress.isComplete) {
+        // User has paid but registration progress is not marked as complete
+        // This is a fix for users who paid but their progress wasn't updated
+        console.log(`Fixing registration progress for user ${userId} - payment completed but progress not updated`);
+        
+        await ProviderRegistrationProgress.update(
+          { 
+            currentStep: 5,
+            isComplete: true,
+            stepData: {
+              ...progress.stepData,
+              step4: {
+                ...progress.stepData.step4,
+                paymentCompleted: true,
+                paymentReference: 'auto-fixed'
+              },
+              step5: {
+                paymentCompleted: true,
+                paymentReference: 'auto-fixed',
+                completedAt: new Date()
+              }
+            },
+            lastUpdated: new Date()
+          },
+          { where: { userId } }
+        );
+        
+        // Reload the progress after update
+        const updatedProgress = await ProviderRegistrationProgress.findOne({
+          where: { userId },
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['id', 'fullName', 'email', 'phone', 'role']
+            }
+          ]
+        });
+        
+        return {
+          success: true,
+          data: {
+            currentStep: updatedProgress.currentStep,
+            stepData: updatedProgress.stepData,
+            completedSteps: Object.keys(updatedProgress.stepData).length,
+            isComplete: true,
+            lastUpdated: updatedProgress.lastUpdated
           }
         };
       }

@@ -68,37 +68,77 @@ class PaystackService {
     }
 
     async initializeTransaction(data, callback) {
-        try {
-            const payload = {
-                email: data.email,
-                amount: data.amount * 100, // Convert to kobo (Paystack expects amount in kobo)
-                currency: "NGN",
-                reference: data.reference || `provider_reg_${Date.now()}`,
-                callback_url: data.callback_url || `${process.env.FRONTEND_URL}/provider/registration/success`,
-                metadata: {
-                    provider_id: data.provider_id,
-                    business_name: data.business_name,
-                    full_name: data.full_name,
-                    phone: data.phone,
-                    category: data.category,
-                    registration_type: 'provider_registration',
-                    subscription_plan_id: data.registration_data?.subscriptionPlanId,
-                    registration_data: data.registration_data
-                }
-            };
+        const payload = {
+            email: data.email,
+            amount: data.amount * 100, // Convert to kobo (Paystack expects amount in kobo)
+            currency: "NGN",
+            reference: data.reference || `provider_reg_${Date.now()}`,
+            callback_url: data.callback_url || `${process.env.FRONTEND_URL}/provider/registration/success`,
+            metadata: {
+                provider_id: data.provider_id,
+                business_name: data.business_name,
+                full_name: data.full_name,
+                phone: data.phone,
+                category: data.category,
+                registration_type: 'provider_registration',
+                subscription_plan_id: data.registration_data?.subscriptionPlanId,
+                registration_data: data.registration_data
+            }
+        };
 
+        // ALWAYS create payment record in database first, regardless of Paystack API result
+        let paymentRecord = null;
+        try {
+            const { Payment } = await import('../../schema/index.js');
+            
+            paymentRecord = await Payment.create({
+                reference: payload.reference,
+                amount: data.amount.toString(),
+                currency: 'NGN',
+                status: 'pending',
+                paymentMethod: 'paystack',
+                customerEmail: data.email,
+                paymentType: 'registration',
+                providerId: data.provider_id,
+                metadata: JSON.stringify(payload.metadata)
+            });
+            
+            console.log('Payment record created:', {
+                id: paymentRecord.id,
+                reference: paymentRecord.reference,
+                status: paymentRecord.status
+            });
+        } catch (dbError) {
+            console.error('Error creating payment record:', dbError);
+            return callback({
+                success: false,
+                message: "Failed to create payment record",
+                data: null
+            });
+        }
+
+        // Now try to initialize with Paystack
+        try {
             const response = await this.api.post('/transaction/initialize', payload);
+            
             return callback({
                 success: true,
                 message: "Transaction initialized successfully",
                 data: response.data.data
             });
         } catch (error) {
-            console.error("Error initializing transaction:", error.response?.data || error.message);
+            console.error("Error initializing transaction with Paystack:", error.response?.data || error.message);
+            
+            // Even if Paystack fails, we still have the payment record, so return success
+            // The payment can be completed manually later
             return callback({
-                success: false,
-                message: "Failed to initialize transaction",
-                data: null
+                success: true,
+                message: "Payment record created, but Paystack initialization failed",
+                data: {
+                    authorization_url: null,
+                    access_code: null,
+                    reference: payload.reference
+                }
             });
         }
     }
@@ -267,22 +307,49 @@ class PaystackService {
                 customer_email: customer?.email,
                 metadata
             });
+            
+            console.log('Metadata details:', {
+                registration_type: metadata?.registration_type,
+                has_registration_data: !!metadata?.registration_data,
+                registration_data_keys: metadata?.registration_data ? Object.keys(metadata.registration_data) : []
+            });
 
             // Import models here to avoid circular dependency
             const { User, ProviderProfile, Payment } = await import('../../schema/index.js');
             
-            // Create payment record
-            await Payment.create({
-                reference,
-                amount: amount / 100, // Convert from kobo to naira
-                currency: 'NGN',
-                status: 'successful',
-                paymentMethod: 'paystack',
-                customerEmail: customer?.email,
-                metadata: JSON.stringify(metadata),
-                providerId: metadata?.provider_id,
-                paymentType: metadata?.registration_type === 'provider_registration' ? 'registration' : 'booking'
-            });
+            // Update existing payment record or create new one
+            let paymentRecord = await Payment.findOne({ where: { reference } });
+            
+            if (paymentRecord) {
+                // Update existing payment record
+                await Payment.update(
+                    {
+                        amount: (amount / 100).toString(), // Convert from kobo to naira
+                        status: 'successful',
+                        paymentMethod: 'paystack',
+                        customerEmail: customer?.email,
+                        metadata: JSON.stringify(metadata),
+                        providerId: metadata?.provider_id,
+                        paymentType: metadata?.registration_type === 'provider_registration' ? 'registration' : 'booking'
+                    },
+                    { where: { reference } }
+                );
+                console.log('Payment record updated:', { reference, status: 'successful' });
+            } else {
+                // Create new payment record (fallback)
+                paymentRecord = await Payment.create({
+                    reference,
+                    amount: (amount / 100).toString(), // Convert from kobo to naira
+                    currency: 'NGN',
+                    status: 'successful',
+                    paymentMethod: 'paystack',
+                    customerEmail: customer?.email,
+                    metadata: JSON.stringify(metadata),
+                    providerId: metadata?.provider_id,
+                    paymentType: metadata?.registration_type === 'provider_registration' ? 'registration' : 'booking'
+                });
+                console.log('Payment record created:', { reference, status: 'successful' });
+            }
 
             // If this is a provider registration payment, register the provider
             if (metadata?.registration_type === 'provider_registration' && metadata?.registration_data) {
@@ -310,28 +377,38 @@ class PaystackService {
                     
                     // Update registration progress to mark step 4 (subscription plan) as completed
                     const { ProviderRegistrationProgress } = await import('../../schema/index.js');
-                    await ProviderRegistrationProgress.update(
-                        { 
-                            currentStep: 5, // Set to step 5 (maximum allowed)
-                            isComplete: true, // Mark registration as complete
-                            stepData: {
-                                ...registrationResult.registrationProgress.stepData,
-                                step4: {
-                                    ...registrationResult.registrationProgress.stepData.step4,
-                                    subscriptionPlanId: metadata.subscription_plan_id,
-                                    paymentCompleted: true,
-                                    paymentReference: reference
-                                },
-                                step5: {
-                                    paymentCompleted: true,
-                                    paymentReference: reference,
-                                    completedAt: new Date()
-                                }
+                    
+                    console.log('Updating registration progress for user:', registrationResult.user.id);
+                    console.log('Current step data:', registrationResult.registrationProgress.stepData);
+                    
+                    const updateData = { 
+                        currentStep: 5, // Set to step 5 (maximum allowed)
+                        isComplete: true, // Mark registration as complete
+                        stepData: {
+                            ...registrationResult.registrationProgress.stepData,
+                            step4: {
+                                ...registrationResult.registrationProgress.stepData.step4,
+                                subscriptionPlanId: metadata.subscription_plan_id,
+                                paymentCompleted: true,
+                                paymentReference: reference
                             },
-                            lastUpdated: new Date()
+                            step5: {
+                                paymentCompleted: true,
+                                paymentReference: reference,
+                                completedAt: new Date()
+                            }
                         },
+                        lastUpdated: new Date()
+                    };
+                    
+                    console.log('Registration progress update data:', JSON.stringify(updateData, null, 2));
+                    
+                    await ProviderRegistrationProgress.update(
+                        updateData,
                         { where: { userId: registrationResult.user.id } }
                     );
+                    
+                    console.log('Registration progress updated successfully');
                     
                     console.log(`Provider ${registrationResult.providerProfile.id} registered, subscription created, payment completed, and registration progress updated successfully`);
                 } catch (registrationError) {

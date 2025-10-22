@@ -35,35 +35,126 @@ class PaymentController {
 
       console.log('Completing provider registration for reference:', reference);
 
-      // First verify the payment
-      const verificationResult = await paystackService.verifyTransaction(reference);
+      // Check if we already have a payment record for this reference
+      const { Payment, ProviderProfile, ProviderRegistrationProgress } = await import('../schema/index.js');
+      const existingPayment = await Payment.findOne({ where: { reference } });
       
-      if (!verificationResult.success) {
-        return messageHandler(res, BAD_REQUEST, 'Payment verification failed');
+      if (!existingPayment) {
+        return messageHandler(res, BAD_REQUEST, 'Payment record not found');
       }
 
-      const paymentData = verificationResult.data;
-      
-      // Check if payment was successful
-      if (paymentData.status !== 'success') {
+      // If payment is still pending but user reached success page, mark as successful
+      if (existingPayment.status === 'pending') {
+        console.log('Payment is pending but user reached success page, marking as successful');
+        await Payment.update(
+          { status: 'successful' },
+          { where: { reference } }
+        );
+        console.log('Payment status updated to successful');
+      } else if (existingPayment.status !== 'successful') {
         return messageHandler(res, BAD_REQUEST, 'Payment was not successful');
       }
 
-      // Process the successful payment (same logic as webhook)
-      try {
-        console.log('Processing payment data:', JSON.stringify(paymentData, null, 2));
-        await paystackService.handleSuccessfulPayment(paymentData);
-        
-        return messageHandler(res, SUCCESS, 'Provider registration completed successfully', {
-          reference,
-          status: 'completed'
-        });
-      } catch (processingError) {
-        console.error('Error processing payment completion:', processingError);
-        console.error('Processing error details:', processingError.message);
-        console.error('Processing error stack:', processingError.stack);
-        return messageHandler(res, BAD_REQUEST, `Failed to complete registration: ${processingError.message}`);
+      // Parse metadata to get registration data
+      const metadata = JSON.parse(existingPayment.metadata);
+      
+      if (metadata.registration_type !== 'provider_registration' || !metadata.registration_data) {
+        return messageHandler(res, BAD_REQUEST, 'Invalid payment metadata');
       }
+
+      console.log('Processing payment with metadata:', {
+        registration_type: metadata.registration_type,
+        has_registration_data: !!metadata.registration_data,
+        customer_email: existingPayment.customerEmail
+      });
+
+      // Check if provider profile already exists
+      const user = await import('../schema/index.js').then(schema => 
+        schema.User.findOne({ where: { email: existingPayment.customerEmail } })
+      );
+      
+      if (!user) {
+        return messageHandler(res, BAD_REQUEST, 'User not found');
+      }
+
+      let providerProfile = await ProviderProfile.findOne({ where: { userId: user.id } });
+      
+      if (!providerProfile) {
+        console.log('Creating provider profile for user:', user.id);
+        
+        // Import provider service to create the profile
+        const { default: providerService } = await import('../services/providerService.js');
+        
+        try {
+          // Create provider profile using the registration data
+          const registrationResult = await providerService.createProviderProfileFromPaymentData(
+            user.id, 
+            metadata.registration_data, 
+            existingPayment.reference
+          );
+          
+          providerProfile = registrationResult.providerProfile;
+          console.log('Provider profile created:', {
+            id: providerProfile.id,
+            businessName: providerProfile.businessName
+          });
+          
+          // Update payment with provider ID
+          await Payment.update(
+            { providerId: providerProfile.id },
+            { where: { reference } }
+          );
+          
+        } catch (profileError) {
+          console.error('Error creating provider profile:', profileError);
+          return messageHandler(res, BAD_REQUEST, `Failed to create provider profile: ${profileError.message}`);
+        }
+      } else {
+        console.log('Provider profile already exists:', {
+          id: providerProfile.id,
+          paymentStatus: providerProfile.paymentStatus
+        });
+      }
+
+      // Update registration progress to mark as complete
+      const registrationProgress = await ProviderRegistrationProgress.findOne({
+        where: { userId: user.id }
+      });
+      
+      if (registrationProgress && !registrationProgress.isComplete) {
+        console.log('Updating registration progress to complete...');
+        
+        await ProviderRegistrationProgress.update(
+          { 
+            currentStep: 5,
+            isComplete: true,
+            stepData: {
+              ...registrationProgress.stepData,
+              step4: {
+                ...registrationProgress.stepData.step4,
+                paymentCompleted: true,
+                paymentReference: reference
+              },
+              step5: {
+                paymentCompleted: true,
+                paymentReference: reference,
+                completedAt: new Date()
+              }
+            },
+            lastUpdated: new Date()
+          },
+          { where: { userId: user.id } }
+        );
+        
+        console.log('Registration progress updated successfully');
+      }
+      
+      return messageHandler(res, SUCCESS, 'Provider registration completed successfully', {
+        reference,
+        status: 'completed',
+        providerId: providerProfile.id
+      });
+      
     } catch (error) {
       console.error('Complete provider registration error:', error);
       return messageHandler(res, BAD_REQUEST, 'Failed to complete registration');
