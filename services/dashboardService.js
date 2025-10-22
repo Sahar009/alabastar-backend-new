@@ -15,25 +15,25 @@ class DashboardService {
         include: [
           {
             model: Payment,
-            as: 'payment',
-            attributes: ['id', 'amount', 'status', 'paidAt']
+            as: 'Payments',
+            attributes: ['id', 'amount', 'status', 'createdAt', 'updatedAt']
           }
         ],
-        attributes: ['id', 'status', 'amount', 'scheduledDate', 'createdAt', 'updatedAt']
+        attributes: ['id', 'status', 'totalAmount', 'scheduledAt', 'createdAt', 'updatedAt']
       });
 
       // Calculate booking statistics
       const totalBookings = bookings.length;
       const completedBookings = bookings.filter(b => b.status === 'completed').length;
-      const pendingBookings = bookings.filter(b => b.status === 'pending').length;
-      const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
+      const pendingBookings = bookings.filter(b => b.status === 'requested').length;
+      const acceptedBookings = bookings.filter(b => b.status === 'accepted').length;
       const inProgressBookings = bookings.filter(b => b.status === 'in_progress').length;
       const cancelledBookings = bookings.filter(b => b.status === 'cancelled').length;
 
       // Calculate earnings
       const totalEarnings = bookings
         .filter(b => b.status === 'completed')
-        .reduce((sum, booking) => sum + (parseFloat(booking.amount) || 0), 0);
+        .reduce((sum, booking) => sum + (parseFloat(booking.totalAmount) || 0), 0);
 
       // Calculate this month's earnings
       const startOfMonth = new Date();
@@ -45,7 +45,7 @@ class DashboardService {
           b.status === 'completed' && 
           new Date(b.updatedAt) >= startOfMonth
         )
-        .reduce((sum, booking) => sum + (parseFloat(booking.amount) || 0), 0);
+        .reduce((sum, booking) => sum + (parseFloat(booking.totalAmount) || 0), 0);
 
       // Calculate this week's bookings
       const startOfWeek = new Date();
@@ -74,10 +74,10 @@ class DashboardService {
         ? (completedBookings / totalBookings) * 100 
         : 0;
 
-      // Get upcoming bookings (confirmed or in_progress, scheduled in future)
+      // Get upcoming bookings (accepted or in_progress, scheduled in future)
       const upcomingBookings = bookings.filter(b => 
-        (b.status === 'confirmed' || b.status === 'in_progress') &&
-        new Date(b.scheduledDate) >= new Date()
+        (b.status === 'accepted' || b.status === 'in_progress') &&
+        new Date(b.scheduledAt) >= new Date()
       ).length;
 
       return {
@@ -85,7 +85,7 @@ class DashboardService {
           total: totalBookings,
           completed: completedBookings,
           pending: pendingBookings,
-          confirmed: confirmedBookings,
+          accepted: acceptedBookings,
           inProgress: inProgressBookings,
           cancelled: cancelledBookings,
           upcoming: upcomingBookings,
@@ -125,13 +125,13 @@ class DashboardService {
           },
           {
             model: Payment,
-            as: 'payment',
-            attributes: ['id', 'amount', 'status', 'paidAt']
+            as: 'Payments',
+            attributes: ['id', 'amount', 'status', 'createdAt', 'updatedAt']
           }
         ],
         order: [['createdAt', 'DESC']],
         limit: limit * 2, // Get more to ensure we have enough after filtering
-        attributes: ['id', 'status', 'amount', 'serviceType', 'scheduledDate', 'createdAt', 'updatedAt']
+        attributes: ['id', 'status', 'totalAmount', 'scheduledAt', 'createdAt', 'updatedAt']
       });
 
       // Transform bookings into activity format
@@ -157,16 +157,16 @@ class DashboardService {
         let type = 'booking';
         let message = '';
         
-        if (booking.status === 'pending') {
+        if (booking.status === 'requested') {
           message = `New booking request from ${booking.customer?.fullName || 'Customer'}`;
-        } else if (booking.status === 'confirmed') {
-          message = `Booking confirmed with ${booking.customer?.fullName || 'Customer'}`;
+        } else if (booking.status === 'accepted') {
+          message = `Booking accepted with ${booking.customer?.fullName || 'Customer'}`;
         } else if (booking.status === 'in_progress') {
           message = `Service in progress for ${booking.customer?.fullName || 'Customer'}`;
         } else if (booking.status === 'completed') {
-          if (booking.amount) {
+          if (booking.totalAmount) {
             type = 'payment';
-            message = `Payment received: ₦${parseFloat(booking.amount).toLocaleString()} from ${booking.customer?.fullName || 'Customer'}`;
+            message = `Payment received: ₦${parseFloat(booking.totalAmount).toLocaleString()} from ${booking.customer?.fullName || 'Customer'}`;
           } else {
             message = `Completed service for ${booking.customer?.fullName || 'Customer'}`;
           }
@@ -182,8 +182,8 @@ class DashboardService {
           message,
           time: timeAgo,
           status: booking.status,
-          serviceType: booking.serviceType,
-          amount: booking.amount,
+          serviceType: 'General Service', // Default since serviceType is not in Booking schema
+          amount: booking.totalAmount,
           createdAt: booking.createdAt
         };
       });
