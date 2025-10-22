@@ -9,6 +9,7 @@ import { connectToDB } from './database/db.js';
 import { config } from './config/config.js';
 import initializeFirebase from './config/firebase.js';
 import { initializeSocket } from './config/socket.js';
+import SubscriptionExpirationService from './services/subscriptionExpirationService.js';
 import './schema/index.js';
 
 const app = express();
@@ -118,12 +119,18 @@ const startServer = async () => {
     // Initialize Socket.io for real-time messaging
     initializeSocket(httpServer);
 
+    // Initialize Subscription Expiration Service
+    const subscriptionExpirationService = new SubscriptionExpirationService();
+    subscriptionExpirationService.start();
+    console.log('⏰ Subscription expiration monitoring started');
+
     // Start server
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
       console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
       console.log(`💬 Socket.io: Real-time messaging enabled`);
+      console.log(`⏰ Subscription Expiration: Monitoring active`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {

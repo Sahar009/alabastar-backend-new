@@ -9,7 +9,7 @@ class SubscriptionHelper {
       const subscription = await ProviderSubscription.findOne({
         where: {
           providerId,
-          status: 'active'
+          status: 'active' // Only active subscriptions
         },
         include: [
           {
@@ -18,6 +18,24 @@ class SubscriptionHelper {
         ],
         order: [['currentPeriodEnd', 'DESC']]
       });
+
+      // If no active subscription found, check for expired subscriptions
+      if (!subscription) {
+        const expiredSubscription = await ProviderSubscription.findOne({
+          where: {
+            providerId,
+            status: 'expired'
+          },
+          include: [
+            {
+              model: SubscriptionPlan
+            }
+          ],
+          order: [['currentPeriodEnd', 'DESC']]
+        });
+
+        return expiredSubscription; // Return expired subscription for reference
+      }
 
       return subscription;
     } catch (error) {
@@ -33,12 +51,13 @@ class SubscriptionHelper {
     try {
       const subscription = await this.getProviderSubscription(providerId);
       
-      if (!subscription || !subscription.SubscriptionPlan) {
+      if (!subscription || !subscription.SubscriptionPlan || subscription.status !== 'active') {
         return {
           allowed: false,
-          reason: 'No active subscription',
+          reason: subscription?.status === 'expired' ? 'Subscription expired' : 'No active subscription',
           currentCount: 0,
-          maxAllowed: 0
+          maxAllowed: 0,
+          subscriptionStatus: subscription?.status || 'none'
         };
       }
 
@@ -59,7 +78,8 @@ class SubscriptionHelper {
         reason: photoCount >= maxPhotos ? 'Photo limit reached' : null,
         currentCount: photoCount,
         maxAllowed: maxPhotos,
-        remaining: Math.max(0, maxPhotos - photoCount)
+        remaining: Math.max(0, maxPhotos - photoCount),
+        subscriptionStatus: subscription.status
       };
     } catch (error) {
       console.error('Error checking photo upload permission:', error);
@@ -67,7 +87,8 @@ class SubscriptionHelper {
         allowed: false,
         reason: 'Error checking permissions',
         currentCount: 0,
-        maxAllowed: 0
+        maxAllowed: 0,
+        subscriptionStatus: 'error'
       };
     }
   }
@@ -79,12 +100,13 @@ class SubscriptionHelper {
     try {
       const subscription = await this.getProviderSubscription(providerId);
       
-      if (!subscription || !subscription.SubscriptionPlan) {
+      if (!subscription || !subscription.SubscriptionPlan || subscription.status !== 'active') {
         return {
           allowed: false,
-          reason: 'No active subscription',
+          reason: subscription?.status === 'expired' ? 'Subscription expired' : 'No active subscription',
           maxVideos: 0,
-          maxDuration: 0
+          maxDuration: 0,
+          subscriptionStatus: subscription?.status || 'none'
         };
       }
 
@@ -106,7 +128,8 @@ class SubscriptionHelper {
         maxVideos,
         maxDuration,
         hasVideo,
-        planName: subscription.SubscriptionPlan.name
+        planName: subscription.SubscriptionPlan.name,
+        subscriptionStatus: subscription.status
       };
     } catch (error) {
       console.error('Error checking video upload permission:', error);
@@ -114,7 +137,8 @@ class SubscriptionHelper {
         allowed: false,
         reason: 'Error checking permissions',
         maxVideos: 0,
-        maxDuration: 0
+        maxDuration: 0,
+        subscriptionStatus: 'error'
       };
     }
   }
@@ -126,10 +150,11 @@ class SubscriptionHelper {
     try {
       const subscription = await this.getProviderSubscription(providerId);
       
-      if (!subscription || !subscription.SubscriptionPlan) {
+      if (!subscription || !subscription.SubscriptionPlan || subscription.status !== 'active') {
         return {
           hasSubscription: false,
-          planName: 'None',
+          planName: subscription?.SubscriptionPlan?.name || 'None',
+          subscriptionStatus: subscription?.status || 'none',
           features: {
             maxPhotos: 0,
             maxVideos: 0,
@@ -139,7 +164,8 @@ class SubscriptionHelper {
             promotionChannels: [],
             promotionEvents: [],
             priority: 0
-          }
+          },
+          expiredAt: subscription?.currentPeriodEnd || null
         };
       }
 
@@ -158,6 +184,7 @@ class SubscriptionHelper {
         hasSubscription: true,
         planName: subscription.SubscriptionPlan.name,
         planId: subscription.SubscriptionPlan.id,
+        subscriptionStatus: subscription.status,
         features,
         subscriptionEndDate: subscription.currentPeriodEnd
       };
@@ -166,6 +193,7 @@ class SubscriptionHelper {
       return {
         hasSubscription: false,
         planName: 'Error',
+        subscriptionStatus: 'error',
         features: {}
       };
     }

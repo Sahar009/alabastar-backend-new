@@ -2674,6 +2674,183 @@ router.put('/subscriptions/:id/auto-renew', async (req, res) => {
   }
 });
 
+// Get subscription expiration statistics
+router.get('/subscription-expiration-stats', async (req, res) => {
+  try {
+    const SubscriptionExpirationService = (await import('../services/subscriptionExpirationService.js')).default;
+    const expirationService = new SubscriptionExpirationService();
+    
+    const stats = await expirationService.getExpirationStats();
+    
+    res.json({
+      success: true,
+      message: 'Subscription expiration statistics retrieved successfully',
+      data: stats
+    });
+  } catch (error) {
+    console.error('Get subscription expiration stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get subscription expiration statistics',
+      error: error.message
+    });
+  }
+});
+
+// Manually trigger subscription expiration check
+router.post('/subscription-expiration-check', async (req, res) => {
+  try {
+    const SubscriptionExpirationService = (await import('../services/subscriptionExpirationService.js')).default;
+    const expirationService = new SubscriptionExpirationService();
+    
+    await expirationService.checkExpiredSubscriptions();
+    
+    res.json({
+      success: true,
+      message: 'Subscription expiration check completed successfully'
+    });
+  } catch (error) {
+    console.error('Manual subscription expiration check error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to run subscription expiration check',
+      error: error.message
+    });
+  }
+});
+
+// Get expired subscriptions with pagination
+router.get('/expired-subscriptions', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      sortBy = 'currentPeriodEnd', 
+      sortOrder = 'DESC' 
+    } = req.query;
+    
+    const offset = (page - 1) * limit;
+    const whereClause = {
+      status: 'expired'
+    };
+
+    const { count, rows: subscriptions } = await ProviderSubscription.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: ProviderProfile,
+          as: 'ProviderProfile',
+          attributes: ['id', 'businessName', 'verificationStatus'],
+          include: [
+            {
+              model: User,
+              attributes: ['id', 'fullName', 'email'],
+              where: search ? {
+                [Op.or]: [
+                  { fullName: { [Op.like]: `%${search}%` } },
+                  { email: { [Op.like]: `%${search}%` } }
+                ]
+              } : undefined,
+              required: search ? true : false
+            }
+          ],
+          required: search ? true : false
+        },
+        {
+          model: SubscriptionPlan,
+          as: 'SubscriptionPlan',
+          attributes: ['id', 'name', 'slug', 'price', 'interval', 'features']
+        }
+      ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      order: [[sortBy, sortOrder.toUpperCase()]],
+      attributes: [
+        'id', 'status', 'currentPeriodStart', 'currentPeriodEnd', 
+        'autoRenew', 'metadata', 'createdAt', 'updatedAt'
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        subscriptions,
+        pagination: {
+          total: count,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          pages: Math.ceil(count / limit)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get expired subscriptions error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch expired subscriptions',
+      error: error.message
+    });
+  }
+});
+
+// Renew expired subscription
+router.post('/subscriptions/:id/renew', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPeriodEnd, planId } = req.body;
+
+    const subscription = await ProviderSubscription.findByPk(id);
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      });
+    }
+
+    if (subscription.status !== 'expired') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only expired subscriptions can be renewed'
+      });
+    }
+
+    // Update subscription
+    const updateData = {
+      status: 'active',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: newPeriodEnd ? new Date(newPeriodEnd) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    };
+
+    if (planId) {
+      updateData.planId = planId;
+    }
+
+    await subscription.update(updateData);
+
+    // Update provider payment status
+    await ProviderProfile.update(
+      { paymentStatus: 'paid' },
+      { where: { id: subscription.providerId } }
+    );
+
+    res.json({
+      success: true,
+      message: 'Subscription renewed successfully',
+      data: subscription
+    });
+
+  } catch (error) {
+    console.error('Renew subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to renew subscription',
+      error: error.message
+    });
+  }
+});
+
 export default router;
 
 
