@@ -630,39 +630,40 @@ router.get('/dashboard/stats', async (req, res) => {
       totalUsers,
       totalProviders,
       totalBookings,
-      totalRevenue,
       activeUsers,
       pendingBookings,
       totalReviews,
       completedBookings,
-      cancelledBookings
+      cancelledBookings,
+      totalRevenue
     ] = await Promise.all([
       User.count({ where: { role: 'customer' } }),
       User.count({ where: { role: 'provider' } }),
       Booking.count(),
-      Payment.sum('amount', { where: { status: 'completed' } }),
       User.count({ where: { status: 'active' } }),
       Booking.count({ where: { status: 'pending' } }),
       Review.count(),
       Booking.count({ where: { status: 'completed' } }),
-      Booking.count({ where: { status: 'cancelled' } })
+      Booking.count({ where: { status: 'cancelled' } }),
+      // Calculate total revenue from subscription fees
+      ProviderSubscription.sum('SubscriptionPlan.price', {
+        where: { status: 'active' },
+        include: [{
+          model: SubscriptionPlan,
+          attributes: []
+        }]
+      }) || 0
     ]);
 
     // Monthly metrics
     const [
-      monthlyRevenue,
       monthlyBookings,
       monthlyUsers,
-      lastMonthRevenue,
       lastMonthBookings,
-      lastMonthUsers
+      lastMonthUsers,
+      monthlyRevenue,
+      lastMonthRevenue
     ] = await Promise.all([
-      Payment.sum('amount', { 
-        where: { 
-          status: 'completed',
-          createdAt: { [Op.gte]: startOfMonth }
-        } 
-      }),
       Booking.count({ 
         where: { 
           createdAt: { [Op.gte]: startOfMonth }
@@ -671,12 +672,6 @@ router.get('/dashboard/stats', async (req, res) => {
       User.count({ 
         where: { 
           createdAt: { [Op.gte]: startOfMonth }
-        } 
-      }),
-      Payment.sum('amount', { 
-        where: { 
-          status: 'completed',
-          createdAt: { [Op.between]: [startOfLastMonth, endOfLastMonth] }
         } 
       }),
       Booking.count({ 
@@ -688,24 +683,33 @@ router.get('/dashboard/stats', async (req, res) => {
         where: { 
           createdAt: { [Op.between]: [startOfLastMonth, endOfLastMonth] }
         } 
-      })
+      }),
+      // Monthly revenue from subscriptions
+      ProviderSubscription.sum('SubscriptionPlan.price', {
+        where: { 
+          status: 'active',
+          createdAt: { [Op.gte]: startOfMonth }
+        },
+        include: [{
+          model: SubscriptionPlan,
+          attributes: []
+        }]
+      }) || 0,
+      // Last month revenue from subscriptions
+      ProviderSubscription.sum('SubscriptionPlan.price', {
+        where: { 
+          status: 'active',
+          createdAt: { [Op.between]: [startOfLastMonth, endOfLastMonth] }
+        },
+        include: [{
+          model: SubscriptionPlan,
+          attributes: []
+        }]
+      }) || 0
     ]);
 
     // Chart data - Last 30 days
     const chartData = await Promise.all([
-      // Revenue chart
-      Payment.findAll({
-        where: {
-          status: 'completed',
-          createdAt: { [Op.gte]: thirtyDaysAgo }
-        },
-        attributes: [
-          [sequelize.fn('DATE', sequelize.col('createdAt')), 'date'],
-          [sequelize.fn('SUM', sequelize.col('amount')), 'revenue']
-        ],
-        group: [sequelize.fn('DATE', sequelize.col('createdAt'))],
-        order: [[sequelize.fn('DATE', sequelize.col('createdAt')), 'ASC']]
-      }),
       // Bookings chart
       Booking.findAll({
         where: {
@@ -729,6 +733,23 @@ router.get('/dashboard/stats', async (req, res) => {
         ],
         group: [sequelize.fn('DATE', sequelize.col('createdAt'))],
         order: [[sequelize.fn('DATE', sequelize.col('createdAt')), 'ASC']]
+      }),
+      // Revenue chart - subscription fees by date
+      ProviderSubscription.findAll({
+        where: {
+          status: 'active',
+          createdAt: { [Op.gte]: thirtyDaysAgo }
+        },
+        attributes: [
+          [sequelize.fn('DATE', sequelize.col('ProviderSubscription.createdAt')), 'date'],
+          [sequelize.fn('SUM', sequelize.col('SubscriptionPlan.price')), 'revenue']
+        ],
+        include: [{
+          model: SubscriptionPlan,
+          attributes: []
+        }],
+        group: [sequelize.fn('DATE', sequelize.col('ProviderSubscription.createdAt'))],
+        order: [[sequelize.fn('DATE', sequelize.col('ProviderSubscription.createdAt')), 'ASC']]
       })
     ]);
 
@@ -771,12 +792,12 @@ router.get('/dashboard/stats', async (req, res) => {
     });
 
     // Calculate growth percentages
-    const revenueGrowth = lastMonthRevenue ? 
-      ((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue * 100) : 0;
     const bookingsGrowth = lastMonthBookings ? 
       ((monthlyBookings - lastMonthBookings) / lastMonthBookings * 100) : 0;
     const usersGrowth = lastMonthUsers ? 
       ((monthlyUsers - lastMonthUsers) / lastMonthUsers * 100) : 0;
+    const revenueGrowth = lastMonthRevenue ? 
+      ((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue * 100) : 0;
 
     res.json({
       success: true,
@@ -785,23 +806,23 @@ router.get('/dashboard/stats', async (req, res) => {
           totalUsers,
           totalProviders,
           totalBookings,
-          totalRevenue: totalRevenue || 0,
           activeUsers,
           pendingBookings,
           totalReviews,
           completedBookings,
           cancelledBookings,
-          monthlyRevenue: monthlyRevenue || 0,
           monthlyBookings,
           monthlyUsers,
-          revenueGrowth: Math.round(revenueGrowth * 100) / 100,
+          totalRevenue,
+          monthlyRevenue,
           bookingsGrowth: Math.round(bookingsGrowth * 100) / 100,
-          usersGrowth: Math.round(usersGrowth * 100) / 100
+          usersGrowth: Math.round(usersGrowth * 100) / 100,
+          revenueGrowth: Math.round(revenueGrowth * 100) / 100
         },
         charts: {
-          revenue: chartData[0],
-          bookings: chartData[1],
-          users: chartData[2]
+          bookings: chartData[0],
+          users: chartData[1],
+          revenue: chartData[2]
         },
         topProviders,
         recentActivities: {
@@ -874,39 +895,6 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// Get User Details
-router.get('/users/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const user = await User.findByPk(id, {
-      attributes: ['id', 'fullName', 'email', 'phone', 'role', 'status', 'createdAt', 'lastLoginAt', 'avatarUrl'],
-      include: [
-        { model: ProviderProfile, as: 'providerProfile' },
-        { model: Booking, as: 'bookings', limit: 10 }
-      ]
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: { user }
-    });
-
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch user details'
-    });
-  }
-});
 
 // Update User Status
 router.put('/users/:id/status', async (req, res) => {
@@ -974,6 +962,7 @@ router.get('/providers', async (req, res) => {
       include: [
         {
           model: ProviderProfile,
+          as: 'providerProfile',
           attributes: ['businessName', 'locationCity', 'locationState', 'isVerified', 'rating', 'totalJobs']
         }
       ],
@@ -1039,23 +1028,62 @@ router.put('/providers/:id/verify', async (req, res) => {
 // Booking Management
 router.get('/bookings', async (req, res) => {
   try {
-    const { page = 1, limit = 10, status = 'all' } = req.query;
+    const { 
+      page = 1, 
+      limit = 10, 
+      search = '', 
+      status = '', 
+      dateFrom = '', 
+      dateTo = '', 
+      sortBy = 'createdAt', 
+      sortOrder = 'DESC' 
+    } = req.query;
     const offset = (page - 1) * limit;
 
     const whereClause = {};
     
-    if (status !== 'all') {
+    // Status filter
+    if (status && status !== 'all') {
       whereClause.status = status;
     }
+    
+    // Date range filter
+    if (dateFrom || dateTo) {
+      whereClause.scheduledAt = {};
+      if (dateFrom) {
+        whereClause.scheduledAt[Op.gte] = new Date(dateFrom + 'T00:00:00.000Z');
+      }
+      if (dateTo) {
+        whereClause.scheduledAt[Op.lte] = new Date(dateTo + 'T23:59:59.999Z');
+      }
+    }
+
+    // Search filter (search in booking ID, customer name, provider name)
+    let searchClause = {};
+    if (search) {
+      searchClause = {
+        [Op.or]: [
+          { id: { [Op.like]: `%${search}%` } },
+          { '$customer.fullName$': { [Op.like]: `%${search}%` } },
+          { '$providerProfile.businessName$': { [Op.like]: `%${search}%` } }
+        ]
+      };
+    }
+
+    // Combine where clauses
+    const finalWhereClause = { ...whereClause, ...searchClause };
+
+    // Order by
+    const orderClause = [[sortBy, sortOrder.toUpperCase()]];
 
     const { count, rows: bookings } = await Booking.findAndCountAll({
-      where: whereClause,
+      where: finalWhereClause,
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['createdAt', 'DESC']],
+      order: orderClause,
       include: [
         { model: User, as: 'customer', attributes: ['fullName', 'email'] },
-        { model: ProviderProfile, include: [{ model: User, attributes: ['fullName'] }] }
+        { model: ProviderProfile, as: 'providerProfile', include: [{ model: User, attributes: ['fullName'] }] }
       ]
     });
 
@@ -1138,8 +1166,8 @@ router.get('/reviews', async (req, res) => {
       offset: parseInt(offset),
       order: [['createdAt', 'DESC']],
       include: [
-        { model: User, as: 'customer', attributes: ['fullName', 'email'] },
-        { model: ProviderProfile, include: [{ model: User, attributes: ['fullName'] }] }
+        { model: User, attributes: ['fullName', 'email'] },
+        { model: ProviderProfile, as: 'providerProfile', include: [{ model: User, attributes: ['fullName'] }] }
       ]
     });
 
@@ -1165,16 +1193,16 @@ router.get('/reviews', async (req, res) => {
   }
 });
 
-// Update Review Status
+// Update Review Visibility
 router.put('/reviews/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { isVisible } = req.body;
 
-    if (!['pending', 'approved', 'rejected'].includes(status)) {
+    if (typeof isVisible !== 'boolean') {
       return res.status(400).json({
         success: false,
-        message: 'Invalid status'
+        message: 'isVisible must be a boolean value'
       });
     }
 
@@ -1187,19 +1215,173 @@ router.put('/reviews/:id/status', async (req, res) => {
       });
     }
 
-    await review.update({ status });
+    review.isVisible = isVisible;
+    await review.save();
 
     res.json({
       success: true,
-      message: 'Review status updated successfully',
-      data: { review: { id: review.id, status: review.status } }
+      message: `Review ${isVisible ? 'made visible' : 'hidden'} successfully`,
+      data: review
     });
 
   } catch (error) {
-    console.error('Update review status error:', error);
+    console.error('Update review visibility error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update review status'
+      message: 'Failed to update review visibility'
+    });
+  }
+});
+
+// Delete Review
+router.delete('/reviews/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const userRole = req.user?.role || 'admin'; // Default to admin for admin routes
+
+    const review = await Review.findByPk(id);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    // Check permissions (admin can delete any review)
+    if (userRole !== 'admin' && review.reviewerId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions to delete this review'
+      });
+    }
+
+    await review.destroy();
+
+    res.json({
+      success: true,
+      message: 'Review deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete review error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete review'
+    });
+  }
+});
+
+// Get all notifications (admin)
+router.get('/notifications', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, type, category, isRead, userId } = req.query;
+    const offset = (page - 1) * limit;
+
+    const whereClause = {};
+    
+    // Apply filters
+    if (type) whereClause.type = type;
+    if (category) whereClause.category = category;
+    if (isRead !== undefined) whereClause.isRead = isRead === 'true';
+    if (userId) whereClause.userId = userId;
+
+    const { count, rows: notifications } = await Notification.findAndCountAll({
+      where: whereClause,
+      include: [
+        { 
+          model: User, 
+          attributes: ['id', 'fullName', 'email', 'role']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    res.json({
+      success: true,
+      data: {
+        notifications,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(count / limit),
+          totalNotifications: count,
+          hasNext: offset + notifications.length < count,
+          hasPrev: page > 1
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch notifications'
+    });
+  }
+});
+
+// Mark notification as read
+router.put('/notifications/:id/read', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const notification = await Notification.findByPk(id);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found'
+      });
+    }
+
+    notification.isRead = true;
+    notification.readAt = new Date();
+    await notification.save();
+
+    res.json({
+      success: true,
+      message: 'Notification marked as read',
+      data: notification
+    });
+
+  } catch (error) {
+    console.error('Mark notification as read error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update notification'
+    });
+  }
+});
+
+// Delete notification
+router.delete('/notifications/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const notification = await Notification.findByPk(id);
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: 'Notification not found'
+      });
+    }
+
+    await notification.destroy();
+
+    res.json({
+      success: true,
+      message: 'Notification deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete notification'
     });
   }
 });
@@ -1260,7 +1442,7 @@ router.post('/notifications/send', async (req, res) => {
 // Create Admin User (Super Admin only)
 router.post('/create-admin', authenticateSuperAdmin, async (req, res) => {
   try {
-    const { fullName, email, password } = req.body;
+    const { fullName, email, password, role = 'moderator', sendEmail = true } = req.body;
 
     if (!fullName || !email || !password) {
       return res.status(400).json({
@@ -1269,18 +1451,25 @@ router.post('/create-admin', authenticateSuperAdmin, async (req, res) => {
       });
     }
 
-    // Check if admin already exists
-    const existingAdmin = await User.findOne({
+    // Validate role
+    if (!['admin', 'moderator'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role. Must be admin or moderator'
+      });
+    }
+
+    // Check if user already exists (any role)
+    const existingUser = await User.findOne({
       where: {
-        email: email.toLowerCase(),
-        role: 'admin'
+        email: email.toLowerCase()
       }
     });
 
-    if (existingAdmin) {
+    if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'Admin user already exists'
+        message: 'A user with this email already exists'
       });
     }
 
@@ -1293,25 +1482,56 @@ router.post('/create-admin', authenticateSuperAdmin, async (req, res) => {
       fullName,
       email: email.toLowerCase(),
       passwordHash,
-      role: 'admin',
+      role,
       status: 'active',
       isEmailVerified: true,
       isPhoneVerified: true
     });
 
+    // Send welcome email if requested
+    if (sendEmail) {
+      try {
+        // TODO: Implement email service to send welcome email with credentials
+        console.log(`Welcome email would be sent to ${email} with login credentials`);
+        // You can integrate with your email service here (e.g., SendGrid, Nodemailer, etc.)
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+        // Don't fail the admin creation if email fails
+      }
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Admin user created successfully',
+      message: `${role.charAt(0).toUpperCase() + role.slice(1)} created successfully`,
       data: {
         id: admin.id,
         fullName: admin.fullName,
         email: admin.email,
-        role: admin.role
+        role: admin.role,
+        emailSent: sendEmail
       }
     });
 
   } catch (error) {
     console.error('Create admin error:', error);
+    
+    // Handle specific Sequelize errors
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      const duplicateField = error.errors?.[0]?.path || 'field';
+      return res.status(400).json({
+        success: false,
+        message: `A user with this ${duplicateField} already exists`
+      });
+    }
+    
+    if (error.name === 'SequelizeValidationError') {
+      const validationErrors = error.errors.map(err => err.message).join(', ');
+      return res.status(400).json({
+        success: false,
+        message: `Validation error: ${validationErrors}`
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -1489,7 +1709,6 @@ router.get('/bookings/:id', async (req, res) => {
       include: [
         {
           model: User,
-          as: 'reviewer',
           attributes: ['id', 'fullName', 'email']
         }
       ],
@@ -1959,12 +2178,12 @@ router.get('/services', async (req, res) => {
       include: [
         {
           model: ServiceCategory,
-          as: 'Category',
+          as: 'ServiceCategory',
           attributes: ['id', 'name', 'slug', 'icon']
         },
         {
           model: ProviderProfile,
-          as: 'Provider',
+          as: 'ProviderProfile',
           attributes: ['id', 'businessName', 'verificationStatus'],
           include: [
             {
@@ -2015,12 +2234,12 @@ router.get('/services/:id', async (req, res) => {
       include: [
         {
           model: ServiceCategory,
-          as: 'Category',
+          as: 'ServiceCategory',
           attributes: ['id', 'name', 'slug', 'description', 'icon']
         },
         {
           model: ProviderProfile,
-          as: 'Provider',
+          as: 'ProviderProfile',
           attributes: [
             'id', 'businessName', 'category', 'verificationStatus', 
             'locationCity', 'locationState', 'bio'

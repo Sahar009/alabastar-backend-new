@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../schema/index.js';
+import { uploadSingleDocument, processUploadedFiles, handleUploadError } from '../middlewares/uploadMiddleware.js';
 
 const router = Router();
 
@@ -53,7 +54,7 @@ router.post('/login', async (req, res) => {
         role: admin.role,
         isAdmin: true
       },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
@@ -157,7 +158,7 @@ router.get('/verify', async (req, res) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decoded.role !== 'admin' || !decoded.isAdmin) {
       return res.status(401).json({
@@ -215,7 +216,7 @@ router.get('/profile', async (req, res) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decoded.role !== 'admin' || !decoded.isAdmin) {
       return res.status(401).json({
@@ -226,7 +227,7 @@ router.get('/profile', async (req, res) => {
 
     // Get admin user
     const admin = await User.findByPk(decoded.userId, {
-      attributes: ['id', 'fullName', 'email', 'role', 'avatarUrl', 'lastLoginAt', 'createdAt']
+      attributes: ['id', 'fullName', 'email', 'role', 'avatarUrl', 'lastLoginAt', 'createdAt', 'status']
     });
 
     if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
@@ -275,7 +276,7 @@ router.put('/profile', async (req, res) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decoded.role !== 'admin' || !decoded.isAdmin) {
       return res.status(401).json({
@@ -346,7 +347,7 @@ router.put('/change-password', async (req, res) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decoded.role !== 'admin' || !decoded.isAdmin) {
       return res.status(401).json({
@@ -388,6 +389,66 @@ router.put('/change-password', async (req, res) => {
 
   } catch (error) {
     console.error('Admin password change error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Upload Admin Avatar
+router.post('/upload-avatar', uploadSingleDocument, processUploadedFiles, handleUploadError, async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'No token provided'
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== 'admin' || !decoded.isAdmin) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin token'
+      });
+    }
+
+    if (!req.uploadResults || !req.uploadResults.document) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded or upload failed'
+      });
+    }
+
+    // Get admin user
+    const admin = await User.findByPk(decoded.userId);
+
+    if (!admin || admin.role !== 'admin' || admin.status !== 'active') {
+      return res.status(401).json({
+        success: false,
+        message: 'Admin user not found or inactive'
+      });
+    }
+
+    // Update admin avatar URL with Cloudinary URL
+    const avatarUrl = req.uploadResults.document.secure_url;
+    await admin.update({ avatarUrl });
+
+    res.json({
+      success: true,
+      message: 'Avatar uploaded successfully',
+      data: {
+        avatarUrl: avatarUrl
+      }
+    });
+
+  } catch (error) {
+    console.error('Avatar upload error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
