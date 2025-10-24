@@ -269,15 +269,19 @@ router.get('/users/:id', async (req, res) => {
       userData.providerRegistrationProgress = registrationProgress;
 
       // Get provider subscriptions
-      const subscriptions = await ProviderSubscription.findAll({
-        where: { providerId: providerProfile?.id },
-        attributes: [
-          'id', 'planId', 'status', 'currentPeriodStart', 'currentPeriodEnd',
-          'autoRenew', 'metadata', 'createdAt', 'updatedAt'
-        ],
-        order: [['createdAt', 'DESC']]
-      });
-      userData.providerSubscriptions = subscriptions;
+      if (providerProfile?.id) {
+        const subscriptions = await ProviderSubscription.findAll({
+          where: { providerId: providerProfile.id },
+          attributes: [
+            'id', 'planId', 'status', 'currentPeriodStart', 'currentPeriodEnd',
+            'autoRenew', 'metadata', 'createdAt', 'updatedAt'
+          ],
+          order: [['createdAt', 'DESC']]
+        });
+        userData.providerSubscriptions = subscriptions;
+      } else {
+        userData.providerSubscriptions = [];
+      }
     }
 
     // Get recent notifications
