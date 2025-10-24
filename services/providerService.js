@@ -778,10 +778,19 @@ class ProviderService {
         ? Math.ceil((new Date(provider.topListingEndDate) - new Date()) / (1000 * 60 * 60 * 24))
         : 0;
 
+      // Extract brand images from ProviderDocuments
+      const brandImages = provider.ProviderDocuments 
+        ? provider.ProviderDocuments
+            .filter(doc => doc.status === 'approved' || doc.status === 'pending')
+            .map(doc => ({ url: doc.url, id: doc.id }))
+        : [];
+
+
       return {
         ...provider.toJSON(),
         isTopListed,
-        daysRemaining
+        daysRemaining,
+        brandImages: brandImages
       };
     });
 
@@ -845,6 +854,11 @@ class ProviderService {
             ]
           } : {},
           attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl']
+        },
+        {
+          model: ProviderDocument,
+          attributes: ['id', 'url', 'status', 'type'],
+          required: false
         }
       ],
       limit,
@@ -859,10 +873,19 @@ class ProviderService {
         ? Math.ceil((new Date(provider.topListingEndDate) - new Date()) / (1000 * 60 * 60 * 24))
         : 0;
 
+      // Extract brand images from ProviderDocuments
+      const brandImages = provider.ProviderDocuments 
+        ? provider.ProviderDocuments
+            .filter(doc => doc.status === 'approved' || doc.status === 'pending')
+            .map(doc => ({ url: doc.url, id: doc.id }))
+        : [];
+
+
       return {
         ...provider.toJSON(),
         isTopListed,
-        daysRemaining
+        daysRemaining,
+        brandImages: brandImages
       };
     });
 
