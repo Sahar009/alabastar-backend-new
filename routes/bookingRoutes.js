@@ -5,8 +5,10 @@ import {
   getBookingByIdController,
   updateBookingStatusController,
   cancelBookingController,
+  cancelMostRecentBookingController,
   getProviderAvailabilityController,
-  getBookingStatsController
+  getBookingStatsController,
+  getActiveBookingsController
 } from '../controllers/bookingController.js';
 import { authenticateToken } from '../middlewares/authMiddleware.js';
 
@@ -35,6 +37,12 @@ router.patch('/:id/cancel', cancelBookingController);
 
 // Get provider availability for a specific date
 router.get('/provider/:providerId/availability', getProviderAvailabilityController);
+
+// Check active bookings for a user
+router.get('/active/:providerId', getActiveBookingsController);
+
+// Cancel most recent booking (for conflict resolution)
+router.patch('/cancel-most-recent', cancelMostRecentBookingController);
 
 export default router;
 

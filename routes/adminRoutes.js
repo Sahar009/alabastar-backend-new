@@ -373,6 +373,262 @@ router.put('/users/:id/status', async (req, res) => {
   }
 });
 
+// Update user details
+router.put('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      fullName, 
+      email, 
+      phone, 
+      alternativePhone, 
+      role, 
+      status, 
+      isEmailVerified, 
+      isPhoneVerified 
+    } = req.body;
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Validate role if provided
+    if (role && !['customer', 'provider', 'admin'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role. Must be customer, provider, or admin'
+      });
+    }
+
+    // Validate status if provided
+    if (status && !['active', 'inactive', 'suspended'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be active, inactive, or suspended'
+      });
+    }
+
+    // Check for email uniqueness if email is being updated
+    if (email && email !== user.email) {
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+    }
+
+    // Check for phone uniqueness if phone is being updated
+    if (phone && phone !== user.phone) {
+      const existingUser = await User.findOne({ where: { phone } });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Phone number already exists'
+        });
+      }
+    }
+
+    // Update user
+    const updateData = {};
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone = phone;
+    if (alternativePhone !== undefined) updateData.alternativePhone = alternativePhone;
+    if (role !== undefined) updateData.role = role;
+    if (status !== undefined) updateData.status = status;
+    if (isEmailVerified !== undefined) updateData.isEmailVerified = isEmailVerified;
+    if (isPhoneVerified !== undefined) updateData.isPhoneVerified = isPhoneVerified;
+
+    await user.update(updateData);
+
+    res.json({
+      success: true,
+      message: 'User updated successfully',
+      data: { user: user.toJSON() }
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user',
+      error: error.message
+    });
+  }
+});
+
+// Update provider profile
+router.put('/users/:id/provider-profile', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      businessName, 
+      category, 
+      subcategories, 
+      bio, 
+      verificationStatus, 
+      locationCity, 
+      locationState, 
+      latitude, 
+      longitude 
+    } = req.body;
+
+    const user = await User.findByPk(id, {
+      include: [{
+        model: ProviderProfile,
+        as: 'ProviderProfile'
+      }]
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (!user.ProviderProfile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Provider profile not found'
+      });
+    }
+
+    // Validate verification status if provided
+    if (verificationStatus && !['pending', 'verified', 'rejected'].includes(verificationStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid verification status. Must be pending, verified, or rejected'
+      });
+    }
+
+    // Update provider profile
+    const updateData = {};
+    if (businessName !== undefined) updateData.businessName = businessName;
+    if (category !== undefined) updateData.category = category;
+    if (subcategories !== undefined) updateData.subcategories = subcategories;
+    if (bio !== undefined) updateData.bio = bio;
+    if (verificationStatus !== undefined) {
+      updateData.verificationStatus = verificationStatus;
+      if (verificationStatus === 'verified') {
+        updateData.verifiedAt = new Date();
+      }
+    }
+    if (locationCity !== undefined) updateData.locationCity = locationCity;
+    if (locationState !== undefined) updateData.locationState = locationState;
+    if (latitude !== undefined) updateData.latitude = latitude;
+    if (longitude !== undefined) updateData.longitude = longitude;
+
+    await user.ProviderProfile.update(updateData);
+
+    // Fetch updated user with provider profile
+    const updatedUser = await User.findByPk(id, {
+      include: [{
+        model: ProviderProfile,
+        as: 'ProviderProfile'
+      }]
+    });
+
+    res.json({
+      success: true,
+      message: 'Provider profile updated successfully',
+      data: { user: updatedUser.toJSON() }
+    });
+  } catch (error) {
+    console.error('Update provider profile error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update provider profile',
+      error: error.message
+    });
+  }
+});
+
+// Update provider registration progress
+router.put('/users/:id/provider-registration-progress', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { currentStep, stepData } = req.body;
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.role !== 'provider') {
+      return res.status(400).json({
+        success: false,
+        message: 'User is not a provider'
+      });
+    }
+
+    // Validate currentStep if provided
+    if (currentStep !== undefined && (currentStep < 1 || currentStep > 5)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid current step. Must be between 1 and 5'
+      });
+    }
+
+    // Find or create registration progress
+    let registrationProgress = await ProviderRegistrationProgress.findOne({
+      where: { userId: id }
+    });
+
+    if (!registrationProgress) {
+      // Create new registration progress if it doesn't exist
+      registrationProgress = await ProviderRegistrationProgress.create({
+        userId: id,
+        currentStep: currentStep || 1,
+        stepData: stepData || {},
+        lastUpdated: new Date()
+      });
+    } else {
+      // Update existing registration progress
+      const updateData = {
+        lastUpdated: new Date()
+      };
+      
+      if (currentStep !== undefined) updateData.currentStep = currentStep;
+      if (stepData !== undefined) updateData.stepData = stepData;
+
+      await registrationProgress.update(updateData);
+    }
+
+    // Fetch updated user with registration progress
+    const updatedUser = await User.findByPk(id, {
+      include: [{
+        model: ProviderRegistrationProgress,
+        as: 'registrationProgress'
+      }]
+    });
+
+    res.json({
+      success: true,
+      message: 'Provider registration progress updated successfully',
+      data: { 
+        user: updatedUser.toJSON(),
+        registrationProgress: registrationProgress.toJSON()
+      }
+    });
+  } catch (error) {
+    console.error('Update provider registration progress error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update provider registration progress',
+      error: error.message
+    });
+  }
+});
+
 // ==================== PROVIDER MANAGEMENT ====================
 
 // Get all providers with pagination and filters

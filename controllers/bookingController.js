@@ -4,8 +4,10 @@ import {
   getBookingById,
   updateBookingStatus,
   cancelBooking,
+  cancelMostRecentBooking,
   getProviderAvailability
 } from '../services/bookingService.js';
+import { Booking, User, Service } from '../schema/index.js';
 
 export const createBookingController = async (req, res) => {
   try {
@@ -186,6 +188,79 @@ export const getBookingStatsController = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in getBookingStatsController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      statusCode: 500
+    });
+  }
+};
+
+export const getActiveBookingsController = async (req, res) => {
+  try {
+    console.log('Checking active bookings for provider:', req.params.providerId);
+    
+    const { providerId } = req.params;
+    const userId = req.user.userId;
+    
+    // Find active bookings for this user with this provider
+    const activeBookings = await Booking.findAll({
+      where: {
+        userId: userId,
+        providerId: providerId,
+        status: ['pending', 'confirmed'] // Only active statuses
+      },
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['id', 'fullName', 'email', 'phone']
+        },
+        {
+          model: Service,
+          as: 'service',
+          attributes: ['id', 'name', 'description']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Active bookings retrieved successfully',
+      statusCode: 200,
+      data: {
+        hasActiveBookings: activeBookings.length > 0,
+        activeBookings: activeBookings,
+        count: activeBookings.length
+      }
+    });
+  } catch (error) {
+    console.error('Error in getActiveBookingsController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      statusCode: 500
+    });
+  }
+};
+
+export const cancelMostRecentBookingController = async (req, res) => {
+  try {
+    console.log('Cancelling most recent booking for user:', req.user.userId);
+    
+    const userId = req.user.userId;
+    const { reason } = req.body;
+
+    const result = await cancelMostRecentBooking(userId, reason);
+    
+    if (result.success) {
+      res.status(result.statusCode).json(result);
+    } else {
+      res.status(result.statusCode).json(result);
+    }
+  } catch (error) {
+    console.error('Error in cancelMostRecentBookingController:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

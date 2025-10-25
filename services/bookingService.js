@@ -506,6 +506,99 @@ export const cancelBooking = async (bookingId, userId, userType, reason = null) 
   }
 };
 
+export const cancelMostRecentBooking = async (userId, reason = null) => {
+  try {
+    // Find the most recent active booking for the user
+    const mostRecentBooking = await Booking.findOne({
+      where: {
+        userId: userId,
+        status: {
+          [Op.in]: ['requested', 'accepted', 'in_progress']
+        }
+      },
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['id', 'fullName', 'email', 'phone']
+        },
+        {
+          model: ProviderProfile,
+          as: 'providerProfile',
+          include: [{
+            model: User,
+            attributes: ['id', 'fullName', 'email', 'phone']
+          }]
+        },
+        {
+          model: Service,
+          as: 'service',
+          attributes: ['id', 'title', 'description']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    if (!mostRecentBooking) {
+      return { success: false, message: 'No active booking found to cancel', statusCode: 404 };
+    }
+
+    // Update booking status to cancelled
+    await mostRecentBooking.update({
+      status: 'cancelled',
+      notes: mostRecentBooking.notes ? `${mostRecentBooking.notes}\nCancelled for new booking: ${reason || 'No reason provided'}` : `Cancelled for new booking: ${reason || 'No reason provided'}`
+    });
+
+    // Send cancellation notifications to provider
+    (async () => {
+      try {
+        // Notify provider about customer cancellation
+        await NotificationHelper.notifyBookingCancelled(
+          mostRecentBooking,
+          mostRecentBooking.providerProfile.userId,
+          reason || 'Customer cancelled to book another provider'
+        );
+
+        // Send email notification to provider
+        try {
+          await sendEmail({
+            to: mostRecentBooking.providerProfile.User.email,
+            subject: 'Booking Cancelled - Customer Booking Another Provider',
+            template: 'booking-cancelled',
+            data: {
+              providerName: mostRecentBooking.providerProfile.User.fullName,
+              customerName: mostRecentBooking.customer.fullName,
+              serviceName: mostRecentBooking.service?.title || 'Service',
+              scheduledDate: new Date(mostRecentBooking.scheduledAt).toLocaleDateString(),
+              scheduledTime: new Date(mostRecentBooking.scheduledAt).toLocaleTimeString(),
+              reason: reason || 'Customer cancelled to book another provider',
+              bookingId: mostRecentBooking.id
+            }
+          });
+        } catch (emailError) {
+          console.warn('[Booking] Email notification failed:', emailError?.message || emailError);
+        }
+      } catch (e) {
+        console.warn('[Booking] Cancellation notification failed:', e?.message || e);
+      }
+    })();
+
+    return { 
+      success: true, 
+      message: 'Most recent booking cancelled successfully', 
+      statusCode: 200, 
+      data: {
+        cancelledBooking: mostRecentBooking,
+        providerNotified: true
+      }
+    };
+
+  } catch (error) {
+    console.error('Error cancelling most recent booking:', error);
+    return { success: false, message: 'Failed to cancel most recent booking', statusCode: 500 };
+  }
+};
+
 export const getProviderAvailability = async (providerId, date) => {
   try {
     const startOfDay = new Date(date);
