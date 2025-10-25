@@ -65,8 +65,13 @@ class EarningsService {
       const platformFee = totalEarnings * 0.1;
       const netEarnings = totalEarnings - platformFee;
 
-      // TODO: Get actual withdrawals from Wallet/Withdrawal table when implemented
-      const totalWithdrawals = 0;
+      // Get actual withdrawals from wallet transactions
+      const { default: WalletService } = await import('./walletService.js');
+      const walletSummary = await WalletService.getWalletSummary(providerId);
+      
+      const totalWithdrawals = walletSummary.success 
+        ? parseFloat(walletSummary.data.totalDebits || 0)
+        : 0;
 
       // Available balance = net earnings - withdrawals
       const availableBalance = netEarnings - totalWithdrawals;

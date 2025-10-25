@@ -349,6 +349,25 @@ class ReferralService {
         throw new Error('Commission already processed');
       }
 
+      // If payment method is wallet, update wallet balance
+      if (paymentMethod === 'wallet') {
+        const { default: WalletService } = await import('./walletService.js');
+        
+        const walletResult = await WalletService.processReferralCommission(
+          commission.id,
+          commission.commissionAmount,
+          commission.referrerId,
+          commission.subscriptionId,
+          commission.referralId
+        );
+
+        if (!walletResult.success) {
+          throw new Error(`Failed to credit wallet: ${walletResult.message}`);
+        }
+
+        console.log(`Commission ${commission.id} credited to wallet: ${walletResult.data.newBalance}`);
+      }
+
       // Update commission status
       await commission.update({
         status: 'paid',
@@ -359,7 +378,11 @@ class ReferralService {
 
       return {
         success: true,
-        message: 'Commission paid successfully'
+        message: 'Commission paid successfully',
+        data: {
+          commission,
+          walletUpdated: paymentMethod === 'wallet'
+        }
       };
     } catch (error) {
       console.error('Error paying commission:', error);

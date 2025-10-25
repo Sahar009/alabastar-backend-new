@@ -26,7 +26,31 @@ class EarningsController {
         return messageHandler(res, BAD_REQUEST, result.message);
       }
 
-      return messageHandler(res, SUCCESS, 'Earnings stats retrieved successfully', result.data);
+      // Get wallet balance and summary
+      const { default: WalletService } = await import('../services/walletService.js');
+      const walletSummary = await WalletService.getWalletSummary(userId);
+
+      // Add wallet information to earnings data
+      const earningsWithWallet = {
+        ...result.data,
+        wallet: walletSummary.success ? {
+          balance: walletSummary.data.balance,
+          currency: walletSummary.data.currency,
+          totalCredits: walletSummary.data.totalCredits,
+          totalDebits: walletSummary.data.totalDebits,
+          netAmount: walletSummary.data.netAmount,
+          recentTransactions: walletSummary.data.recentTransactions
+        } : {
+          balance: 0,
+          currency: 'NGN',
+          totalCredits: 0,
+          totalDebits: 0,
+          netAmount: 0,
+          recentTransactions: []
+        }
+      };
+
+      return messageHandler(res, SUCCESS, 'Earnings stats retrieved successfully', earningsWithWallet);
     } catch (error) {
       console.error('Error getting earnings stats:', error);
       return messageHandler(res, INTERNAL_SERVER_ERROR, 'Error fetching earnings stats');

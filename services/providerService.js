@@ -732,7 +732,7 @@ class ProviderService {
       throw new Error('Provider not found');
     }
 
-    return provider;
+    return provider.toJSON();
   }
 
   async updateProviderProfile(providerId, updateData) {

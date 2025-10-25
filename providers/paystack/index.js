@@ -70,7 +70,7 @@ class PaystackService {
     async initializeTransaction(data, callback) {
         const payload = {
             email: data.email,
-            amount: data.amount * 100, // Convert to kobo (Paystack expects amount in kobo)
+            amount: data.amount , // Convert to kobo (Paystack expects amount in kobo)
             currency: "NGN",
             reference: data.reference || `provider_reg_${Date.now()}`,
             callback_url: data.callback_url || `${process.env.FRONTEND_URL}/provider/registration/success`,
@@ -176,7 +176,7 @@ class PaystackService {
         try {
             const payload = {
                 type: "nuban",
-                name: data.accountName,
+                name: data.name || data.accountName,
                 account_number: data.accountNumber,
                 bank_code: data.bankCode,
                 currency: "NGN"
@@ -199,8 +199,68 @@ class PaystackService {
     }
 
     async initiateTransfer(data, callback) {
-             //implement
+        try {
+            // First verify the account number
+            const accountVerification = await new Promise((resolve) => {
+                this.verifyAccountNumber({
+                    accountNumber: data.accountNumber,
+                    bankCode: data.bankCode
+                }, resolve);
+            });
 
+            if (!accountVerification.success) {
+                return callback({
+                    success: false,
+                    message: "Account verification failed",
+                    data: null
+                });
+            }
+
+            // Create transfer recipient if not exists
+            const recipientData = {
+                type: "nuban",
+                name: accountVerification.data.account_name,
+                account_number: data.accountNumber,
+                bank_code: data.bankCode,
+                currency: "NGN"
+            };
+
+            const recipientResult = await new Promise((resolve) => {
+                this.createTransferRecipient(recipientData, resolve);
+            });
+            
+            if (!recipientResult.success) {
+                return callback({
+                    success: false,
+                    message: "Failed to create transfer recipient",
+                    data: null
+                });
+            }
+
+            // Initiate transfer
+            const transferPayload = {
+                source: "balance",
+                amount: data.amount * 100, // Convert to kobo
+                recipient: recipientResult.data.recipient_code,
+                reason: data.reason || "Withdrawal from Alabastar wallet",
+                reference: data.reference || `withdrawal_${Date.now()}`
+            };
+
+            const response = await this.api.post('/transfer', transferPayload);
+            
+            return callback({
+                success: true,
+                message: "Transfer initiated successfully",
+                data: response.data.data
+            });
+        } catch (error) {
+            console.error("Error initiating transfer:", error.response?.data || error.message);
+            return callback({
+                success: false,
+                message: "Failed to initiate transfer",
+                data: null
+            });
+        }
     }
 
     async getBanksList(callback) {
@@ -216,6 +276,52 @@ class PaystackService {
             return callback({
                 success: false,
                 message: "Failed to retrieve banks",
+                data: null
+            });
+        }
+    }
+
+    async getBankCode(bankName, callback) {
+        try {
+            const banksResponse = await new Promise((resolve) => {
+                this.getBanksList(resolve);
+            });
+            
+            if (!banksResponse.success) {
+                return callback({
+                    success: false,
+                    message: "Failed to retrieve banks list",
+                    data: null
+                });
+            }
+
+            const banks = banksResponse.data;
+            const bank = banks.find(b => 
+                b.name.toLowerCase().includes(bankName.toLowerCase()) ||
+                bankName.toLowerCase().includes(b.name.toLowerCase())
+            );
+
+            if (!bank) {
+                return callback({
+                    success: false,
+                    message: "Bank not found",
+                    data: null
+                });
+            }
+
+            return callback({
+                success: true,
+                message: "Bank code retrieved successfully",
+                data: {
+                    code: bank.code,
+                    name: bank.name
+                }
+            });
+        } catch (error) {
+            console.error("Error getting bank code:", error.response?.data || error.message);
+            return callback({
+                success: false,
+                message: "Failed to get bank code",
                 data: null
             });
         }
@@ -277,6 +383,15 @@ class PaystackService {
                     break;
                 case 'charge.failed':
                     await this.handleFailedPayment(data);
+                    break;
+                case 'transfer.success':
+                    await this.handleSuccessfulTransfer(data);
+                    break;
+                case 'transfer.failed':
+                    await this.handleFailedTransfer(data);
+                    break;
+                case 'transfer.reversed':
+                    await this.handleReversedTransfer(data);
                     break;
                 default:
                     console.log('Unhandled webhook event:', event);
@@ -497,18 +612,177 @@ class PaystackService {
     }
 
     async handleSuccessfulTransfer(data) {
-             //implement
+        try {
+            const { reference, amount, recipient, reason } = data;
+            
+            console.log('Processing successful transfer:', {
+                reference,
+                amount,
+                recipient,
+                reason
+            });
 
+            // Import models here to avoid circular dependency
+            const { WalletTransaction, Wallet } = await import('../../schema/index.js');
+            
+            // Find the wallet transaction by reference
+            const walletTransaction = await WalletTransaction.findOne({ 
+                where: { reference },
+                include: [{ model: Wallet, as: 'wallet' }]
+            });
+
+            if (walletTransaction) {
+                // Update transaction status
+                await walletTransaction.update({
+                    status: 'completed',
+                    metadata: JSON.stringify({
+                        ...JSON.parse(walletTransaction.metadata || '{}'),
+                        paystackTransferId: data.id,
+                        transferStatus: 'successful',
+                        completedAt: new Date()
+                    })
+                });
+
+                console.log(`Transfer ${reference} completed successfully`);
+            }
+
+            return { success: true, message: 'Transfer processed successfully' };
+        } catch (error) {
+            console.error('Error handling successful transfer:', error);
+            throw error;
+        }
     }
 
     async handleFailedTransfer(data) {
-             //implement
+        try {
+            const { reference, amount, recipient, reason } = data;
+            
+            console.log('Processing failed transfer:', {
+                reference,
+                amount,
+                recipient,
+                reason
+            });
 
+            // Import models here to avoid circular dependency
+            const { WalletTransaction, Wallet } = await import('../../schema/index.js');
+            
+            // Find the wallet transaction by reference
+            const walletTransaction = await WalletTransaction.findOne({ 
+                where: { reference },
+                include: [{ model: Wallet, as: 'wallet' }]
+            });
+
+            if (walletTransaction) {
+                // Refund the amount back to wallet
+                const wallet = walletTransaction.wallet;
+                const refundAmount = parseFloat(walletTransaction.amount);
+                
+                await wallet.update({
+                    balance: parseFloat(wallet.balance) + refundAmount
+                });
+
+                // Update transaction status
+                await walletTransaction.update({
+                    status: 'failed',
+                    metadata: JSON.stringify({
+                        ...JSON.parse(walletTransaction.metadata || '{}'),
+                        paystackTransferId: data.id,
+                        transferStatus: 'failed',
+                        refundedAt: new Date(),
+                        refundAmount: refundAmount
+                    })
+                });
+
+                // Create refund transaction record
+                await WalletTransaction.create({
+                    walletId: wallet.id,
+                    type: 'credit',
+                    amount: refundAmount,
+                    reference: `REFUND_${reference}`,
+                    description: `Refund for failed transfer: ${reason}`,
+                    balanceAfter: parseFloat(wallet.balance),
+                    metadata: JSON.stringify({
+                        originalReference: reference,
+                        refundReason: 'Transfer failed',
+                        paystackTransferId: data.id
+                    })
+                });
+
+                console.log(`Transfer ${reference} failed, amount refunded to wallet`);
+            }
+
+            return { success: true, message: 'Failed transfer processed' };
+        } catch (error) {
+            console.error('Error handling failed transfer:', error);
+            throw error;
+        }
     }
 
     async handleReversedTransfer(data) {
-             //implement
+        try {
+            const { reference, amount, recipient, reason } = data;
+            
+            console.log('Processing reversed transfer:', {
+                reference,
+                amount,
+                recipient,
+                reason
+            });
 
+            // Import models here to avoid circular dependency
+            const { WalletTransaction, Wallet } = await import('../../schema/index.js');
+            
+            // Find the wallet transaction by reference
+            const walletTransaction = await WalletTransaction.findOne({ 
+                where: { reference },
+                include: [{ model: Wallet, as: 'wallet' }]
+            });
+
+            if (walletTransaction) {
+                // Refund the amount back to wallet
+                const wallet = walletTransaction.wallet;
+                const refundAmount = parseFloat(walletTransaction.amount);
+                
+                await wallet.update({
+                    balance: parseFloat(wallet.balance) + refundAmount
+                });
+
+                // Update transaction status
+                await walletTransaction.update({
+                    status: 'reversed',
+                    metadata: JSON.stringify({
+                        ...JSON.parse(walletTransaction.metadata || '{}'),
+                        paystackTransferId: data.id,
+                        transferStatus: 'reversed',
+                        refundedAt: new Date(),
+                        refundAmount: refundAmount
+                    })
+                });
+
+                // Create refund transaction record
+                await WalletTransaction.create({
+                    walletId: wallet.id,
+                    type: 'credit',
+                    amount: refundAmount,
+                    reference: `REVERSAL_${reference}`,
+                    description: `Reversal for transfer: ${reason}`,
+                    balanceAfter: parseFloat(wallet.balance),
+                    metadata: JSON.stringify({
+                        originalReference: reference,
+                        refundReason: 'Transfer reversed',
+                        paystackTransferId: data.id
+                    })
+                });
+
+                console.log(`Transfer ${reference} reversed, amount refunded to wallet`);
+            }
+
+            return { success: true, message: 'Reversed transfer processed' };
+        } catch (error) {
+            console.error('Error handling reversed transfer:', error);
+            throw error;
+        }
     }
 
     async createDedicatedVirtualAccount(userData, callback) {

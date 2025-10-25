@@ -364,6 +364,27 @@ export const updateBookingStatus = async (bookingId, userId, userType, newStatus
             updatedBooking.service || { title: 'Service' }
           );
         } else if (newStatus === 'completed') {
+          // Process earnings to provider's wallet
+          try {
+            const { default: WalletService } = await import('./walletService.js');
+            const netAmount = parseFloat(updatedBooking.totalAmount) * 0.9; // 90% after 10% platform fee
+            
+            const walletResult = await WalletService.processBookingEarnings(
+              updatedBooking.id,
+              updatedBooking.providerId,
+              netAmount,
+              updatedBooking.userId
+            );
+            
+            if (walletResult.success) {
+              console.log(`Booking ${updatedBooking.id} earnings processed to wallet: ${walletResult.data.newBalance}`);
+            } else {
+              console.error(`Failed to process booking earnings: ${walletResult.message}`);
+            }
+          } catch (walletError) {
+            console.error('Error processing booking earnings to wallet:', walletError);
+          }
+
           // Notify customer that booking is completed
           await NotificationHelper.notifyBookingCompleted(
             updatedBooking,

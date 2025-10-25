@@ -14,6 +14,9 @@ import earningsRoutes from './earningsRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import favoritesRoutes from './favoritesRoutes.js';
 import messagingRoutes from './messagingRoutes.js';
+import walletRoutes from './walletRoutes.js';
+import paystackRoutes from './paystackRoutes.js';
+import categoryRoutes from './categoryRoutes.js';
 import adminAuthRoutes from './adminAuthRoutes.js';
 import adminRoutes from './adminRoutes.js';
 
@@ -64,6 +67,15 @@ const router = (app) => {
   
   // Messaging routes
   app.use('/api/messages', messagingRoutes);
+  
+  // Wallet routes
+  app.use('/api/wallet', walletRoutes);
+  
+  // Paystack routes
+  app.use('/api/paystack', paystackRoutes);
+  
+  // Category routes (public)
+  app.use('/api/categories', categoryRoutes);
   
   // Admin authentication routes
   app.use('/api/admin/auth', adminAuthRoutes);

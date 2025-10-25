@@ -103,7 +103,23 @@ class ProviderController {
 
       const provider = await providerService.getProviderProfileByUserId(userId);
       
-      return messageHandler(res, SUCCESS, 'Provider profile retrieved successfully', provider);
+      // Get wallet balance
+      const { default: WalletService } = await import('../services/walletService.js');
+      const walletResult = await WalletService.getWalletBalance(userId);
+      
+      // Add wallet information to provider data
+      const providerWithWallet = {
+        ...provider,
+        wallet: walletResult.success ? {
+          balance: walletResult.data.balance,
+          currency: walletResult.data.currency
+        } : {
+          balance: 0,
+          currency: 'NGN'
+        }
+      };
+      
+      return messageHandler(res, SUCCESS, 'Provider profile retrieved successfully', providerWithWallet);
     } catch (error) {
       console.error('Get current provider profile error:', error);
       if (error.message === 'Provider not found') {

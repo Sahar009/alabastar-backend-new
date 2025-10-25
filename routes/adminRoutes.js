@@ -2,8 +2,9 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
-import { User, ProviderProfile, Booking, Payment, Review, Notification, Customer, ProviderSubscription, ProviderRegistrationProgress, ServiceCategory, Service, SubscriptionPlan } from '../schema/index.js';
+import { User, ProviderProfile, Booking, Payment, Review, Notification, Customer, ProviderSubscription, ProviderRegistrationProgress, ServiceCategory, Service, SubscriptionPlan, Wallet, WalletTransaction } from '../schema/index.js';
 import { authenticateAdmin, authenticateSuperAdmin, adminRateLimit } from '../middleware/adminAuth.js';
+import WalletController from '../controllers/walletController.js';
 
 const router = Router();
 
@@ -614,6 +615,205 @@ router.put('/providers/:id/status', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to update provider status',
+      error: error.message
+    });
+  }
+});
+
+// Create new provider (Admin only)
+router.post('/providers/create', async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phone,
+      businessName,
+      category,
+      subcategories = [],
+      bio = '',
+      locationCity,
+      locationState,
+      sendEmail = true,
+      completedSteps = {
+        step1: true,
+        step2: true,
+        step3: true,
+        step4: true,
+        step5: false
+      }
+    } = req.body;
+
+    // Validate required fields
+    if (!fullName || !email || !phone || !businessName || !category || !locationCity || !locationState) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields. Please provide: fullName, email, phone, businessName, category, locationCity, locationState'
+      });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'A user with this email already exists'
+      });
+    }
+
+    // Generate a random password
+    const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase();
+    
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(tempPassword, 12);
+
+    // Create user account
+    const user = await User.create({
+      fullName,
+      email,
+      phone,
+      passwordHash: hashedPassword,
+      role: 'provider',
+      status: 'active',
+      isEmailVerified: true,
+      isPhoneVerified: true
+    });
+
+    // Create provider profile
+    const providerProfile = await ProviderProfile.create({
+      userId: user.id,
+      businessName,
+      category,
+      subcategories: subcategories.join(','),
+      bio,
+      locationCity,
+      locationState,
+      verificationStatus: 'verified', // Auto-verify admin-created providers
+      isActive: true
+    });
+
+    // Complete registration steps based on individual step selections
+    try {
+      // Create or update registration progress based on selected steps
+      const registrationProgress = await ProviderRegistrationProgress.findOne({
+        where: { userId: user.id }
+      });
+
+      // Build step data based on completedSteps
+      const stepData = {};
+      let maxCompletedStep = 0;
+      
+      Object.keys(completedSteps).forEach((stepKey, index) => {
+        const stepNumber = index + 1;
+        if (completedSteps[stepKey]) {
+          stepData[stepKey] = { completed: true, timestamp: new Date() };
+          maxCompletedStep = Math.max(maxCompletedStep, stepNumber);
+        }
+      });
+
+      if (registrationProgress) {
+        // Update existing progress
+        await registrationProgress.update({
+          currentStep: maxCompletedStep,
+          stepData: {
+            ...registrationProgress.stepData,
+            ...stepData
+          },
+          lastUpdated: new Date()
+        });
+      } else {
+        // Create new progress record
+        await ProviderRegistrationProgress.create({
+          userId: user.id,
+          currentStep: maxCompletedStep,
+          stepData,
+          lastUpdated: new Date()
+        });
+      }
+      
+      console.log(`Registration steps updated for provider ${user.id}:`, stepData);
+    } catch (stepError) {
+      console.error('Failed to update registration steps:', stepError);
+      // Don't fail the entire reqßuest if step completion fails
+    }
+
+    // Send welcome email with login credentials
+    if (sendEmail) {
+      try {
+        const { sendEmail: emailService } = await import('../modules/notifications/email.js');
+        
+        const loginUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/provider/login`;
+        
+        await emailService(
+          email,
+          `Welcome to Alabastar - Your Provider Account is Ready!`,
+          `Hi ${fullName}, your provider account for ${businessName} has been created and verified. Your login credentials are: Email: ${email}, Password: ${tempPassword}. Please login at ${loginUrl} and change your password for security.`,
+          'provider-admin-welcome',
+          {
+            fullName,
+            businessName,
+            email,
+            password: tempPassword,
+            loginUrl
+          }
+        );
+        
+        console.log(`Welcome email sent successfully to ${email}`);
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+        // Don't fail the entire request if email fails
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Provider created successfully',
+      data: {
+        user: {
+          id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          status: user.status
+        },
+        providerProfile: {
+          id: providerProfile.id,
+          businessName: providerProfile.businessName,
+          category: providerProfile.category,
+          subcategories: providerProfile.subcategories.split(','),
+          locationCity: providerProfile.locationCity,
+          locationState: providerProfile.locationState,
+          verificationStatus: providerProfile.verificationStatus
+        },
+        credentials: {
+          email,
+          password: tempPassword
+        },
+        completedSteps: completedSteps
+      }
+    });
+
+  } catch (error) {
+    console.error('Create provider error:', error);
+    
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        success: false,
+        message: 'A user with this email already exists'
+      });
+    }
+    
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: error.errors.map(err => err.message)
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create provider',
       error: error.message
     });
   }
@@ -3073,6 +3273,26 @@ router.post('/subscriptions/:id/renew', async (req, res) => {
     });
   }
 });
+
+// ==================== WALLET MANAGEMENT ====================
+
+// Get wallet balance for any user
+router.get('/wallets/:userId/balance', WalletController.getWalletBalance);
+
+// Get wallet transactions for any user
+router.get('/wallets/:userId/transactions', WalletController.getWalletTransactions);
+
+// Credit wallet for any user
+router.post('/wallets/:userId/credit', WalletController.creditWallet);
+
+// Debit wallet for any user
+router.post('/wallets/:userId/debit', WalletController.debitWallet);
+
+// Get all wallets with balances
+router.get('/wallets', WalletController.getAllWallets);
+
+// Get wallet statistics
+router.get('/wallets/stats', WalletController.getWalletStats);
 
 export default router;
 
