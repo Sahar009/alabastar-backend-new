@@ -309,9 +309,10 @@ export const updateBookingStatus = async (bookingId, userId, userType, newStatus
     }
 
     // Validate status transition
+    // Allow flexible transitions for customers and providers
     const validTransitions = {
-      'requested': ['accepted', 'cancelled'],
-      'accepted': ['in_progress', 'cancelled'],
+      'requested': ['accepted', 'in_progress', 'completed', 'cancelled'], // Allow all transitions
+      'accepted': ['in_progress', 'completed', 'cancelled'], // Allow to complete directly
       'in_progress': ['completed', 'cancelled'],
       'completed': [],
       'cancelled': []

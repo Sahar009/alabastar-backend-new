@@ -1,6 +1,7 @@
-import { Review, Booking, User, ProviderProfile } from '../schema/index.js';
+import { Review, Booking, User, ProviderProfile, Notification } from '../schema/index.js';
 import { SUCCESS, CREATED, BAD_REQUEST, NOT_FOUND, FORBIDDEN, INTERNAL_SERVER_ERROR } from '../constants/statusCode.js';
 import ReviewService from '../services/reviewService.js';
+import NotificationHelper from '../utils/notificationHelper.js';
 
 // Create a new review
 export const createReview = async (req, res) => {
@@ -77,24 +78,34 @@ export const createReview = async (req, res) => {
       comment: comment || null
     });
 
+    // Send notification to provider
+    try {
+      await NotificationHelper.notifyReviewReceived(
+        booking.providerId,
+        booking.customer.fullName,
+        rating,
+        comment
+      );
+    } catch (notificationError) {
+      console.error('Error sending review notification:', notificationError);
+      // Don't fail the review creation if notification fails
+    }
+
     // Fetch the created review with associations
     const createdReview = await Review.findOne({
       where: { id: review.id },
       include: [
         { 
           model: User, 
-          as: 'reviewer',
           attributes: ['id', 'fullName', 'email']
         },
         { 
           model: ProviderProfile, 
-          as: 'provider',
           attributes: ['id', 'businessName', 'category']
         },
         { 
           model: Booking, 
-          as: 'booking',
-          attributes: ['id', 'serviceType', 'scheduledAt']
+          attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ]
     });
@@ -134,13 +145,11 @@ export const getProviderReviews = async (req, res) => {
       include: [
         { 
           model: User, 
-          as: 'reviewer',
           attributes: ['id', 'fullName']
         },
         { 
           model: Booking, 
-          as: 'booking',
-          attributes: ['id', 'serviceType', 'scheduledAt']
+          attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -214,18 +223,15 @@ export const getAllReviews = async (req, res) => {
       include: [
         { 
           model: User, 
-          as: 'reviewer',
           attributes: ['id', 'fullName', 'email']
         },
         { 
           model: ProviderProfile, 
-          as: 'provider',
           attributes: ['id', 'businessName', 'category']
         },
         { 
           model: Booking, 
-          as: 'booking',
-          attributes: ['id', 'serviceType', 'scheduledAt']
+          attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -343,13 +349,11 @@ export const getUserReviews = async (req, res) => {
       include: [
         { 
           model: ProviderProfile, 
-          as: 'provider',
           attributes: ['id', 'businessName', 'category']
         },
         { 
           model: Booking, 
-          as: 'booking',
-          attributes: ['id', 'serviceType', 'scheduledAt']
+          attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
       order: [['createdAt', 'DESC']],

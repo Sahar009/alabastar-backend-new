@@ -75,13 +75,11 @@ class ReviewService {
       include: [
         { 
           model: User, 
-          as: 'reviewer',
           attributes: ['id', 'fullName']
         },
         { 
           model: Booking, 
-          as: 'booking',
-          attributes: ['id', 'serviceType', 'scheduledAt']
+          attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -183,13 +181,11 @@ class ReviewService {
       include: [
         { 
           model: ProviderProfile, 
-          as: 'provider',
           attributes: ['id', 'businessName', 'category']
         },
         { 
           model: Booking, 
-          as: 'booking',
-          attributes: ['id', 'serviceType', 'scheduledAt']
+          attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -253,18 +249,15 @@ class ReviewService {
       include: [
         { 
           model: User, 
-          as: 'reviewer',
           attributes: ['id', 'fullName', 'email']
         },
         { 
           model: ProviderProfile, 
-          as: 'provider',
           attributes: ['id', 'businessName', 'category']
         },
         { 
           model: Booking, 
-          as: 'booking',
-          attributes: ['id', 'serviceType', 'scheduledAt']
+          attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -325,13 +318,11 @@ class ReviewService {
         },
         { 
           model: ProviderProfile, 
-          as: 'provider',
           attributes: ['id', 'businessName', 'category']
         },
         { 
           model: Booking, 
-          as: 'booking',
-          attributes: ['id', 'serviceType', 'scheduledAt']
+          attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
       order: [['createdAt', 'DESC']],
@@ -347,7 +338,6 @@ class ReviewService {
       include: [
         {
           model: Review,
-          as: 'reviews',
           where: { isVisible: true },
           required: true,
           attributes: []

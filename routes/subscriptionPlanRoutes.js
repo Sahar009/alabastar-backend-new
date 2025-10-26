@@ -14,7 +14,7 @@ class SubscriptionPlanController {
       const plans = await SubscriptionPlan.findAll({
         where: { isActive: true },
         order: [['price', 'ASC']], // Cheapest first
-        attributes: ['id', 'name', 'slug', 'price', 'interval', 'benefits']
+        attributes: ['id', 'name', 'slug', 'price', 'interval', 'benefits', 'features']
       });
 
       return messageHandler(res, SUCCESS, 'Subscription plans retrieved successfully', plans);
