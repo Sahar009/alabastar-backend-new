@@ -1626,8 +1626,12 @@ router.get('/reviews', async (req, res) => {
       offset: parseInt(offset),
       order: [['createdAt', 'DESC']],
       include: [
-        { model: User, attributes: ['fullName', 'email'] },
-        { model: ProviderProfile, as: 'providerProfile', include: [{ model: User, attributes: ['fullName'] }] }
+        { model: User, attributes: ['id', 'fullName', 'email'] },
+        { 
+          model: ProviderProfile, 
+          attributes: ['id', 'businessName', 'category'],
+          include: [{ model: User, attributes: ['id', 'fullName'] }] 
+        }
       ]
     });
 
@@ -1636,10 +1640,11 @@ router.get('/reviews', async (req, res) => {
       data: {
         reviews,
         pagination: {
-          total: count,
-          page: parseInt(page),
+          currentPage: parseInt(page),
+          totalPages: Math.ceil(count / limit),
+          totalReviews: count,
           limit: parseInt(limit),
-          pages: Math.ceil(count / limit)
+          total: count
         }
       }
     });
@@ -1849,7 +1854,7 @@ router.delete('/notifications/:id', async (req, res) => {
 // Send Notification to Users
 router.post('/notifications/send', async (req, res) => {
   try {
-    const { title, message, type = 'general', targetUsers = 'all', targetRoles = [] } = req.body;
+    const { title, message, type = 'general', priority = 'normal', targetUsers = 'all', targetRoles = [] } = req.body;
 
     if (!title || !message) {
       return res.status(400).json({
@@ -1867,27 +1872,72 @@ router.post('/notifications/send', async (req, res) => {
       whereClause.role = targetRoles;
     }
 
-    const users = await User.findAll({
-      where: whereClause,
-      attributes: ['id']
-    });
+    // Get count of users first to determine if batching is needed
+    const userCount = await User.count({ where: whereClause });
 
-    const notifications = users.map(user => ({
-      userId: user.id,
-      title,
-      body: message,
-      type,
-      category: 'admin',
-      priority: 'normal',
-      isRead: false
-    }));
+    if (userCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No users found matching the criteria'
+      });
+    }
 
-    await Notification.bulkCreate(notifications);
+    // Use pagination for large user sets
+    const batchSize = 1000;
+    let totalSent = 0;
+    
+    if (userCount > batchSize) {
+      // Process in batches for large user sets
+      const totalBatches = Math.ceil(userCount / batchSize);
+      
+      for (let i = 0; i < totalBatches; i++) {
+        const offset = i * batchSize;
+        
+        const users = await User.findAll({
+          where: whereClause,
+          attributes: ['id'],
+          limit: batchSize,
+          offset: offset
+        });
+
+        const notifications = users.map(user => ({
+          userId: user.id,
+          title,
+          body: message,
+          type,
+          category: 'admin',
+          priority,
+          isRead: false
+        }));
+
+        await Notification.bulkCreate(notifications);
+        totalSent += users.length;
+      }
+    } else {
+      // For smaller user sets, process all at once
+      const users = await User.findAll({
+        where: whereClause,
+        attributes: ['id']
+      });
+
+      const notifications = users.map(user => ({
+        userId: user.id,
+        title,
+        body: message,
+        type,
+        category: 'admin',
+        priority,
+        isRead: false
+      }));
+
+      await Notification.bulkCreate(notifications);
+      totalSent = users.length;
+    }
 
     res.json({
       success: true,
-      message: `Notification sent to ${users.length} users`,
-      data: { sentTo: users.length }
+      message: `Notification sent to ${totalSent} users`,
+      data: { sentTo: totalSent, totalUsers: userCount }
     });
 
   } catch (error) {
