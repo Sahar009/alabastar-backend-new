@@ -3,6 +3,7 @@ import { sendEmail } from '../modules/notifications/email.js';
 import NotificationHelper from '../utils/notificationHelper.js';
 import notificationService from './notificationService.js';
 import { Op } from 'sequelize';
+import Review from '../schema/Review.js';
 
 export const createBooking = async (bookingData) => {
   try {
@@ -189,6 +190,12 @@ export const getBookings = async (userId, userType = 'customer', filters = {}) =
       as: 'service',
       attributes: ['id', 'title', 'description', 'pricingType', 'basePrice'],
       required: false
+    },
+    {
+      model: Review,
+      as: 'review',
+      required: false,
+      attributes: ['id', 'rating', 'comment']
     }
   ];
 

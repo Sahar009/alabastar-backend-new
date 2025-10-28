@@ -68,10 +68,10 @@ WalletTransaction.belongsTo(Wallet, { foreignKey: 'walletId' });
 
 ProviderProfile.hasMany(Review, { foreignKey: 'providerId' });
 User.hasMany(Review, { foreignKey: 'reviewerId' });
-Booking.hasOne(Review, { foreignKey: 'bookingId' });
+Booking.hasOne(Review, { foreignKey: 'bookingId', as: 'review' });
 Review.belongsTo(ProviderProfile, { foreignKey: 'providerId' });
 Review.belongsTo(User, { foreignKey: 'reviewerId' });
-Review.belongsTo(Booking, { foreignKey: 'bookingId' });
+Review.belongsTo(Booking, { foreignKey: 'bookingId', as: 'booking' });
 
 ChatThread.belongsTo(User, { foreignKey: 'userId', as: 'Customer' });
 ChatThread.belongsTo(ProviderProfile, { foreignKey: 'providerId', as: 'Provider' });
