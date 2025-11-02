@@ -202,12 +202,13 @@ class ProviderController {
 
   async searchProviders(req, res) {
     try {
-      const { search, category, location, page = 1, limit = 20 } = req.query;
+      const { search, category, location, featured, page = 1, limit = 20 } = req.query;
       
       const result = await providerService.searchProviders(
         search || '',
         category || null,
         location || null,
+        featured === 'true' || featured === true,
         parseInt(page),
         parseInt(limit)
       );
