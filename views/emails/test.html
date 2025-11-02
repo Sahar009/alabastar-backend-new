@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Welcome to Alabastar - Your Provider Account is Ready!</title>
+    <title>Welcome to Alabastar as a Provider!</title>
   </head>
   <body
     style="
       margin: 0;
       padding: 0;
-      background: #2563eb;
-      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #FF9900 0%, #E6008A 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       text-align: center;
-      padding: 10px;
+      padding: 20px 10px;
     "
   >
     <div
@@ -20,35 +20,26 @@
         margin: 20px auto;
         padding: 40px 20px;
         max-width: 600px;
-        background: #fffdf9;
-        border: 1px solid #e6f2ff;
-        border-radius: 24px;
+        background: #ffffff;
+        border: none;
+        border-radius: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
       "
     >
       <!-- Logo -->
-      <div style="width: 100%; margin: 0 auto 40px">
-        <a href="<%= process.env.FRONTEND_URL || 'http://localhost:3000' %>" style="text-decoration: none;">
-          <div
+      <div style="width: 100%; margin: 0 auto 40px; text-align: center;">
+        <a href="<%= process.env.FRONTEND_URL || 'http://localhost:3000' %>" style="text-decoration: none; display: inline-block;">
+          <img 
+            src="https://res.cloudinary.com/do537qymc/image/upload/v1762048807/logo_oy6yhh.png" 
+            alt="Alabastar Logo" 
             style="
-              width: 128px;
-              height: 128px;
-              margin: 0 auto 40px;
-              background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-size: 32px;
-              font-weight: bold;
-              letter-spacing: 2px;
-              transition: transform 0.2s ease;
+              width: auto;
+              height: 80px;
+              max-width: 200px;
+              display: block;
+              margin: 0 auto;
             "
-            onmouseover="this.style.transform='scale(1.05)'"
-            onmouseout="this.style.transform='scale(1)'"
-          >
-            ALABASTAR
-          </div>
+          />
         </a>
       </div>
 
@@ -79,7 +70,7 @@
       </div>
 
       <!-- Content -->
-      <h1 style="color: #2563eb; font-size: 32px; margin: 0 0 24px">
+      <h1 style="color: #1a202c; font-size: 32px; margin: 0 0 24px; font-weight: 700; line-height: 1.2;">
         Welcome to Alabastar as a Provider!
       </h1>
 
@@ -91,68 +82,33 @@
           max-width: 500px;
         "
       >
-        Hi <%= fullName %>, congratulations! Your provider account for <strong><%= businessName %></strong> has been created and verified by our admin team. 
-        You can now start accepting bookings immediately!
+        Hi <%= fullName %>, congratulations on joining Alabastar as a service provider! 
+        We're excited to have you on board and look forward to helping you grow your business.
       </p>
-
-      <!-- Login Credentials Box -->
-      <div
-        style="
-          background-color: #f0f9ff;
-          border: 2px solid #2563eb;
-          border-radius: 12px;
-          padding: 24px;
-          margin: 30px auto;
-          max-width: 500px;
-          text-align: left;
-        "
-      >
-        <h3 style="color: #1e40af; font-size: 18px; margin: 0 0 16px; text-align: center;">🔐 Your Login Credentials</h3>
-        
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; color: #374151; font-size: 14px; font-weight: 600; margin-bottom: 4px;">Email Address:</label>
-          <div style="background: white; padding: 12px; border-radius: 8px; border: 1px solid #d1d5db; font-family: monospace; font-size: 16px; color: #1f2937;">
-            <%= email %>
-          </div>
-        </div>
-        
-        <div style="margin-bottom: 16px;">
-          <label style="display: block; color: #374151; font-size: 14px; font-weight: 600; margin-bottom: 4px;">Temporary Password:</label>
-          <div style="background: white; padding: 12px; border-radius: 8px; border: 1px solid #d1d5db; font-family: monospace; font-size: 16px; color: #1f2937; letter-spacing: 1px;">
-            <%= password %>
-          </div>
-        </div>
-        
-        <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-top: 16px;">
-          <p style="margin: 0; color: #92400e; font-size: 14px;">
-            <strong>⚠️ Important:</strong> Please change your password after your first login for security purposes.
-          </p>
-        </div>
-      </div>
 
       <!-- Steps Section -->
       <div style="margin: 40px 0; text-align: left; max-width: 500px; margin-left: auto; margin-right: auto;">
-        <div style="display: flex; align-items: flex-start; margin-bottom: 20px; padding: 16px; background-color: #f8fafc; border-radius: 8px; border-left: 4px solid #2563eb;">
-          <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #2563eb, #14b8a6); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 16px; color: white; font-size: 16px; font-weight: bold; flex-shrink: 0;">1</div>
-          <div>
-            <h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">Login to Your Account</h3>
-            <p style="font-size: 14px; color: #64748b; margin: 0;">Use the credentials above to access your provider dashboard and start managing your business.</p>
-          </div>
-        </div>
-        
-        <div style="display: flex; align-items: flex-start; margin-bottom: 20px; padding: 16px; background-color: #f8fafc; border-radius: 8px; border-left: 4px solid #2563eb;">
-          <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #2563eb, #14b8a6); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 16px; color: white; font-size: 16px; font-weight: bold; flex-shrink: 0;">2</div>
+        <div style="display: flex; align-items: flex-start; margin-bottom: 20px; padding: 16px; background-color: #f7fafc; border-radius: 12px; border-left: 4px solid #990099; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
+          <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #FF9900, #E6008A); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 16px; color: white; font-size: 16px; font-weight: bold; flex-shrink: 0;">1</div>
           <div>
             <h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">Complete Your Profile</h3>
             <p style="font-size: 14px; color: #64748b; margin: 0;">Add your portfolio, set your availability, and upload professional photos to attract more customers.</p>
           </div>
         </div>
         
-        <div style="display: flex; align-items: flex-start; margin-bottom: 20px; padding: 16px; background-color: #f8fafc; border-radius: 8px; border-left: 4px solid #2563eb;">
+        <div style="display: flex; align-items: flex-start; margin-bottom: 20px; padding: 16px; background-color: #f7fafc; border-radius: 12px; border-left: 4px solid #990099; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
+          <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #2563eb, #14b8a6); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 16px; color: white; font-size: 16px; font-weight: bold; flex-shrink: 0;">2</div>
+          <div>
+            <h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">Get Verified</h3>
+            <p style="font-size: 14px; color: #64748b; margin: 0;">We'll review your documents and verify your credentials. This usually takes 24-48 hours.</p>
+          </div>
+        </div>
+        
+        <div style="display: flex; align-items: flex-start; margin-bottom: 20px; padding: 16px; background-color: #f7fafc; border-radius: 12px; border-left: 4px solid #990099; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);">
           <div style="width: 32px; height: 32px; background: linear-gradient(135deg, #2563eb, #14b8a6); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 16px; color: white; font-size: 16px; font-weight: bold; flex-shrink: 0;">3</div>
           <div>
             <h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">Start Accepting Bookings</h3>
-            <p style="font-size: 14px; color: #64748b; margin: 0;">You're already verified! You can start receiving booking requests immediately.</p>
+            <p style="font-size: 14px; color: #64748b; margin: 0;">Once verified, you'll appear in search results and can start receiving booking requests.</p>
           </div>
         </div>
       </div>
@@ -161,24 +117,25 @@
       <div
         style="
           background-color: #e6fffa;
-          border-left: 4px solid #14b8a6;
+          border-left: 4px solid #E6008A;
           padding: 20px;
           margin: 30px auto;
           border-radius: 0 8px 8px 0;
           max-width: 500px;
         "
       >
-        <h4 style="margin: 0 0 10px 0; color: #065f46; font-size: 16px;">🎉 You're All Set!</h4>
-        <p style="margin: 0; color: #047857; font-size: 14px;">Your account has been pre-verified by our admin team, so you can start accepting bookings right away. Our support team is here to help you succeed!</p>
+        <h4 style="margin: 0 0 10px 0; color: #065f46; font-size: 16px;">📋 What's Next?</h4>
+        <p style="margin: 0; color: #047857; font-size: 14px;">Check your email for verification updates. Once approved, you'll receive a notification and can start accepting bookings immediately. Our support team is here to help you succeed!</p>
       </div>
 
       <!-- Success Message -->
       <div
         style="
-          color: #2563eb;
+          color: #4a5568;
           font-size: 18px;
           margin: 34px 0;
           font-weight: 500;
+          line-height: 1.6;
         "
       >
         If you have any questions or need assistance, don't hesitate to reach out to our support team.
@@ -187,20 +144,21 @@
       <!-- CTA Button -->
       <div style="margin: 40px 0; text-align: center;">
         <a 
-          href="<%= loginUrl %>"
+          href="<%= dashboardUrl %>"
           style="
             display: inline-block;
-            background: linear-gradient(135deg, #2563eb 0%, #14b8a6 100%);
+            background: linear-gradient(135deg, #FF9900 0%, #E6008A 100%);
             color: white;
             text-decoration: none;
-            padding: 16px 32px;
-            border-radius: 8px;
+            padding: 16px 40px;
+            border-radius: 12px;
             font-weight: 600;
             font-size: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
           "
         >
-          Login to Your Dashboard
+          Access Your Dashboard
         </a>
       </div>
 
@@ -213,21 +171,15 @@
         </p>
 
         <!-- Social Icons -->
-        <div style="margin: 0 0 29px">
-          <a href="https://www.youtube.com" style="margin: 0 4px;">
-            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">YT</span>
+        <div style="margin: 0 0 29px; text-align: center;">
+          <a href="https://www.tiktok.com/@alabastar" style="margin: 0 8px; display: inline-block; text-decoration: none;">
+            <img src="https://res.cloudinary.com/do537qymc/image/upload/v1762051479/TikTok_Logo_Alternative_1_svg5zs.png" alt="TikTok" style="width: 32px; height: 32px; display: block;" />
           </a>
-          <a href="https://www.linkedin.com" style="margin: 0 4px;">
-            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">LI</span>
+          <a href="https://www.instagram.com/alabastar" style="margin: 0 8px; display: inline-block; text-decoration: none;">
+            <img src="https://res.cloudinary.com/do537qymc/image/upload/v1762051436/Instagram_Symbol_2_kmjhzj.webp" alt="Instagram" style="width: 32px; height: 32px; display: block;" />
           </a>
-          <a href="https://www.facebook.com" style="margin: 0 4px;">
-            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">FB</span>
-          </a>
-          <a href="https://www.instagram.com" style="margin: 0 4px;">
-            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">IG</span>
-          </a>
-          <a href="https://www.twitter.com" style="margin: 0 4px;">
-            <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 50%; color: white; text-align: center; line-height: 24px; font-size: 12px;">TW</span>
+          <a href="https://www.facebook.com/alabastar" style="margin: 0 8px; display: inline-block; text-decoration: none;">
+            <img src="https://res.cloudinary.com/do537qymc/image/upload/v1762050913/Symbol_sdjeaj.png" alt="Facebook" style="width: 32px; height: 32px; display: block;" />
           </a>
         </div>
 
@@ -236,63 +188,29 @@
         </p>
 
         <!-- App Store Buttons -->
-        <div style="margin: 20px 0">
-          <a href="https://www.apple.com" style="text-decoration: none;">
-            <div
-              style="
-                display: inline-block;
-                margin: 5px 10px;
-                border: 1px solid #2563eb;
-                border-radius: 20px;
-                padding: 10px;
-              "
-            >
-              <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 4px; color: white; text-align: center; line-height: 24px; font-size: 12px; margin-right: 10px;">🍎</span>
-              <div
-                style="
-                  display: inline-block;
-                  color: #2563eb;
-                  text-align: left;
-                  vertical-align: middle;
-                "
-              >
-                <div style="font-size: 12px">Download on the</div>
-                <div style="font-size: 16px">App store</div>
-              </div>
-            </div>
+        <div style="margin: 20px 0; text-align: center;">
+          <a href="https://www.apple.com/app-store" style="text-decoration: none; display: inline-block; margin: 5px 10px;">
+            <img src="https://res.cloudinary.com/do537qymc/image/upload/v1762050768/Logo_5_tgzyxl.png" alt="Download on the App Store" style="height: 40px; width: auto; display: block;" />
           </a>
-
-          <a href="https://play.google.com" style="text-decoration: none;">
-            <div
-              style="
-                display: inline-block;
-                margin: 5px 10px;
-                border: 1px solid #2563eb;
-                border-radius: 20px;
-                padding: 10px;
-              "
-            >
-              <span style="display: inline-block; width: 24px; height: 24px; background: #2563eb; border-radius: 4px; color: white; text-align: center; line-height: 24px; font-size: 12px; margin-right: 10px;">📱</span>
-              <div
-                style="
-                  display: inline-block;
-                  color: #2563eb;
-                  text-align: left;
-                  vertical-align: middle;
-                "
-              >
-                <div style="font-size: 12px">Get it on</div>
-                <div style="font-size: 16px">Google play</div>
-              </div>
-            </div>
+          <a href="https://play.google.com/store" style="text-decoration: none; display: inline-block; margin: 5px 10px;">
+            <img src="https://res.cloudinary.com/do537qymc/image/upload/v1762050814/id1br2ZZ8y_1762050790146_jhhodr.jpg" alt="Get it on Google Play" style="height: 40px; width: auto; display: block;" />
           </a>
         </div>
 
         <p style="color: #000000; font-size: 14px; margin: 20px 0">
-          You are receiving this email because your provider account was created by our admin team on Alabastar.
+          You are receiving this email because you registered as a provider on Alabastar.
           All rights reserved.
         </p>
       </div>
     </div>
   </body>
 </html>
+
+
+
+
+
+
+
+
+
