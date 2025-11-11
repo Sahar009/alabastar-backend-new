@@ -178,6 +178,74 @@ class ProviderController {
     }
   }
 
+  async getProviderSettings(req, res) {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+
+      if (!userId) {
+        return messageHandler(res, BAD_REQUEST, 'User ID is required');
+      }
+
+      const result = await providerService.getProviderSettings(userId);
+
+      return messageHandler(res, SUCCESS, 'Provider settings retrieved successfully', result.data);
+    } catch (error) {
+      console.error('Get provider settings error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message || 'Unable to load provider settings');
+    }
+  }
+
+  async updateProviderSettings(req, res) {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+
+      if (!userId) {
+        return messageHandler(res, BAD_REQUEST, 'User ID is required');
+      }
+
+      const result = await providerService.updateProviderSettings(userId, req.body || {});
+
+      return messageHandler(res, SUCCESS, 'Provider settings updated successfully', result.data);
+    } catch (error) {
+      console.error('Update provider settings error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message || 'Unable to update provider settings');
+    }
+  }
+
+  async updateProviderNotificationSettings(req, res) {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+
+      if (!userId) {
+        return messageHandler(res, BAD_REQUEST, 'User ID is required');
+      }
+
+      const result = await providerService.updateProviderNotificationSettings(userId, req.body || {});
+
+      return messageHandler(res, SUCCESS, 'Notification preferences updated successfully', result.data);
+    } catch (error) {
+      console.error('Update provider notification settings error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message || 'Unable to update notification preferences');
+    }
+  }
+
+  async updateProviderPrivacySettings(req, res) {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+
+      if (!userId) {
+        return messageHandler(res, BAD_REQUEST, 'User ID is required');
+      }
+
+      const result = await providerService.updateProviderPrivacySettings(userId, req.body || {});
+
+      return messageHandler(res, SUCCESS, 'Privacy preferences updated successfully', result.data);
+    } catch (error) {
+      console.error('Update provider privacy settings error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message || 'Unable to update privacy preferences');
+    }
+  }
+ 
   async getProvidersByCategory(req, res) {
     try {
       const { category } = req.params;

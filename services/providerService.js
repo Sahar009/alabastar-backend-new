@@ -1,4 +1,4 @@
-import { User, ProviderProfile, ProviderDocument, ProviderRegistrationProgress } from '../schema/index.js';
+import { User, ProviderProfile, ProviderDocument, ProviderRegistrationProgress, ProviderSetting } from '../schema/index.js';
 import { Service } from '../schema/index.js';
 import { sendEmail } from '../modules/notifications/email.js';
 import NotificationHelper from '../utils/notificationHelper.js';
@@ -8,6 +8,24 @@ import crypto from 'crypto';
 import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
 import paystackService from '../providers/paystack/index.js';
+
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  email: true,
+  sms: false,
+  push: true,
+};
+
+const DEFAULT_PRIVACY_SETTINGS = {
+  showProfile: true,
+  showContactInfo: true,
+  showPortfolio: true,
+};
+
+const DEFAULT_ACCOUNT_SETTINGS = {
+  autoAcceptBookings: false,
+  twoFactorAuth: false,
+  allowDirectMessages: true,
+};
 
 class ProviderService {
   // Get provider registration fee (this should be configurable by admin)
@@ -1201,6 +1219,163 @@ class ProviderService {
       };
     } catch (error) {
       console.error('Error creating user and registration progress:', error);
+      throw error;
+    }
+  }
+
+  async ensureProviderSettings(userId) {
+    try {
+      const [settings] = await ProviderSetting.findOrCreate({
+        where: { userId },
+        defaults: {
+          notifications: DEFAULT_NOTIFICATION_SETTINGS,
+          privacy: DEFAULT_PRIVACY_SETTINGS,
+          autoAcceptBookings: DEFAULT_ACCOUNT_SETTINGS.autoAcceptBookings,
+          twoFactorAuth: DEFAULT_ACCOUNT_SETTINGS.twoFactorAuth,
+          allowDirectMessages: DEFAULT_ACCOUNT_SETTINGS.allowDirectMessages,
+        },
+      });
+
+      // Merge with defaults in case of missing fields
+      const mergedNotifications = {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        ...(settings.notifications || {}),
+      };
+      const mergedPrivacy = {
+        ...DEFAULT_PRIVACY_SETTINGS,
+        ...(settings.privacy || {}),
+      };
+      const mergedAccount = {
+        autoAcceptBookings: settings.autoAcceptBookings ?? DEFAULT_ACCOUNT_SETTINGS.autoAcceptBookings,
+        twoFactorAuth: settings.twoFactorAuth ?? DEFAULT_ACCOUNT_SETTINGS.twoFactorAuth,
+        allowDirectMessages: settings.allowDirectMessages ?? DEFAULT_ACCOUNT_SETTINGS.allowDirectMessages,
+      };
+
+      if (
+        JSON.stringify(settings.notifications) !== JSON.stringify(mergedNotifications) ||
+        JSON.stringify(settings.privacy) !== JSON.stringify(mergedPrivacy) ||
+        settings.autoAcceptBookings !== mergedAccount.autoAcceptBookings ||
+        settings.twoFactorAuth !== mergedAccount.twoFactorAuth ||
+        settings.allowDirectMessages !== mergedAccount.allowDirectMessages
+      ) {
+        await settings.update({
+          notifications: mergedNotifications,
+          privacy: mergedPrivacy,
+          autoAcceptBookings: mergedAccount.autoAcceptBookings,
+          twoFactorAuth: mergedAccount.twoFactorAuth,
+          allowDirectMessages: mergedAccount.allowDirectMessages,
+        });
+      }
+
+      return settings;
+    } catch (error) {
+      console.error('ensureProviderSettings error:', error);
+      throw error;
+    }
+  }
+
+  async getProviderSettings(userId) {
+    try {
+      const settings = await this.ensureProviderSettings(userId);
+
+      return {
+        success: true,
+        data: {
+          notifications: {
+            ...DEFAULT_NOTIFICATION_SETTINGS,
+            ...(settings.notifications || {}),
+          },
+          privacy: {
+            ...DEFAULT_PRIVACY_SETTINGS,
+            ...(settings.privacy || {}),
+          },
+          autoAcceptBookings: settings.autoAcceptBookings ?? DEFAULT_ACCOUNT_SETTINGS.autoAcceptBookings,
+          twoFactorAuth: settings.twoFactorAuth ?? DEFAULT_ACCOUNT_SETTINGS.twoFactorAuth,
+          allowDirectMessages: settings.allowDirectMessages ?? DEFAULT_ACCOUNT_SETTINGS.allowDirectMessages,
+          preferences: settings.preferences || {},
+        },
+      };
+    } catch (error) {
+      console.error('getProviderSettings error:', error);
+      throw error;
+    }
+  }
+
+  async updateProviderSettings(userId, payload = {}) {
+    try {
+      const settings = await this.ensureProviderSettings(userId);
+
+      const updates = {};
+
+      if (payload.notifications) {
+        updates.notifications = {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          ...(settings.notifications || {}),
+          ...payload.notifications,
+        };
+      }
+
+      if (payload.privacy) {
+        updates.privacy = {
+          ...DEFAULT_PRIVACY_SETTINGS,
+          ...(settings.privacy || {}),
+          ...payload.privacy,
+        };
+      }
+
+      if (payload.preferences) {
+        updates.preferences = {
+          ...(settings.preferences || {}),
+          ...payload.preferences,
+        };
+      }
+
+      const accountUpdates = {};
+      if (payload.autoAcceptBookings !== undefined) {
+        accountUpdates.autoAcceptBookings = Boolean(payload.autoAcceptBookings);
+      }
+      if (payload.twoFactorAuth !== undefined) {
+        accountUpdates.twoFactorAuth = Boolean(payload.twoFactorAuth);
+      }
+      if (payload.allowDirectMessages !== undefined) {
+        accountUpdates.allowDirectMessages = Boolean(payload.allowDirectMessages);
+      }
+
+      if (Object.keys(accountUpdates).length > 0) {
+        Object.assign(updates, accountUpdates);
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return this.getProviderSettings(userId);
+      }
+
+      await settings.update(updates);
+
+      return this.getProviderSettings(userId);
+    } catch (error) {
+      console.error('updateProviderSettings error:', error);
+      throw error;
+    }
+  }
+
+  async updateProviderNotificationSettings(userId, notificationSettings = {}) {
+    try {
+      return this.updateProviderSettings(userId, {
+        notifications: notificationSettings,
+      });
+    } catch (error) {
+      console.error('updateProviderNotificationSettings error:', error);
+      throw error;
+    }
+  }
+
+  async updateProviderPrivacySettings(userId, privacySettings = {}) {
+    try {
+      return this.updateProviderSettings(userId, {
+        privacy: privacySettings,
+      });
+    } catch (error) {
+      console.error('updateProviderPrivacySettings error:', error);
       throw error;
     }
   }

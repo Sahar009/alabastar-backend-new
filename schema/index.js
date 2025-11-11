@@ -37,6 +37,7 @@ import Message from './Message.js';
 import MessageReadReceipt from './MessageReadReceipt.js';
 import MessageReaction from './MessageReaction.js';
 import ProviderRegistrationProgress from './ProviderRegistrationProgress.js';
+import ProviderSetting from './ProviderSetting.js';
 
 // Associations
 User.hasOne(Customer, { foreignKey: 'userId', as: 'customer' });
@@ -84,6 +85,8 @@ User.hasMany(Notification, { foreignKey: 'userId' });
 Notification.belongsTo(User, { foreignKey: 'userId' });
 User.hasOne(NotificationPreference, { foreignKey: 'userId' });
 NotificationPreference.belongsTo(User, { foreignKey: 'userId' });
+User.hasOne(ProviderSetting, { foreignKey: 'userId', as: 'providerSettings' });
+ProviderSetting.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(DeviceToken, { foreignKey: 'userId' });
 DeviceToken.belongsTo(User, { foreignKey: 'userId' });
 
@@ -195,6 +198,7 @@ export {
   User,
   Customer,
   ProviderProfile,
+  ProviderSetting,
   ServiceCategory,
   Service,
   Booking,
