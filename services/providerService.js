@@ -802,7 +802,7 @@ class ProviderService {
     };
   }
 
-  async searchProviders(searchTerm, category = null, location = null, featured = false, page = 1, limit = 20) {
+  async searchProviders(searchTerm, category = null, location = null, page = 1, limit = 20) {
     const offset = (page - 1) * limit;
     const whereClause = {
       verificationStatus: 'verified'
@@ -817,33 +817,6 @@ class ProviderService {
         { locationCity: { [Op.like]: `%${location}%` } },
         { locationState: { [Op.like]: `%${location}%` } }
       ];
-    }
-
-    // Filter by featured (top-listed providers)
-    if (featured) {
-      const featuredCondition = {
-        [Op.or]: [
-          // Providers with active top listing
-          {
-            topListingEndDate: {
-              [Op.gt]: new Date()
-            }
-          },
-          // OR providers with listingPriority > 1
-          {
-            listingPriority: {
-              [Op.gt]: 1
-            }
-          }
-        ]
-      };
-      
-      // Add featured condition to whereClause
-      if (whereClause[Op.and]) {
-        whereClause[Op.and].push(featuredCondition);
-      } else {
-        whereClause[Op.and] = [featuredCondition];
-      }
     }
 
     // Build order clause with location priority if location is specified

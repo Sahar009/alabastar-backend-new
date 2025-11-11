@@ -78,6 +78,34 @@ const upload = multer({
   }
 });
 
+// File filter for profile pictures (images only)
+const profilePictureFileFilter = (req, file, cb) => {
+  const allowedTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/heic',
+    'image/heif'
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed for profile pictures.'), false);
+  }
+};
+
+const profilePictureUpload = multer({
+  storage,
+  fileFilter: profilePictureFileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit for profile pictures
+    files: 1
+  }
+});
+
 /**
  * Middleware for uploading KYC documents
  */
@@ -90,6 +118,11 @@ export const uploadKycDocuments = upload.fields([
  * Middleware for uploading single document
  */
 export const uploadSingleDocument = upload.single('document');
+
+/**
+ * Middleware for uploading profile pictures
+ */
+export const uploadProfilePicture = profilePictureUpload.single('avatar');
 
 /**
  * Middleware for uploading multiple provider documents
@@ -182,8 +215,13 @@ export const processUploadedFiles = async (req, res, next) => {
 
     // Handle single file
     if (req.file) {
+      // Use different folder for profile pictures
+      const folder = req.route?.path?.includes('/profile/picture') 
+        ? 'alabastar/profile-pictures' 
+        : 'awari-kyc/documents';
+      
       const uploadOptions = {
-        folder: 'awari-kyc/documents',
+        folder: folder,
         resource_type: req.file.mimetype.startsWith('image/') ? 'image' : 'raw'
       };
 

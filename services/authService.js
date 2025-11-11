@@ -428,6 +428,45 @@ class AuthService {
     };
   }
 
+  async updateProfilePicture(userId, uploadData) {
+    const user = await User.findByPk(userId, {
+      include: [{
+        model: Customer,
+        as: 'customer'
+      }]
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (!uploadData?.secure_url) {
+      throw new Error('Invalid upload data');
+    }
+
+    user.avatarUrl = uploadData.secure_url;
+    await user.save();
+
+    return {
+      avatarUrl: user.avatarUrl,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        status: user.status,
+        provider: user.provider,
+        avatarUrl: user.avatarUrl
+      },
+      customer: user.customer ? {
+        id: user.customer.id,
+        preferences: user.customer.preferences,
+        notificationSettings: user.customer.notificationSettings
+      } : null
+    };
+  }
+
   async changePassword(userId, currentPassword, newPassword) {
     try {
       const user = await User.findByPk(userId);

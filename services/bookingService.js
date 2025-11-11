@@ -25,6 +25,11 @@ export const createBooking = async (bookingData) => {
       return { success: false, message: 'Missing required fields', statusCode: 400 };
     }
 
+    // Check if user is trying to book themselves (if they are a provider)
+    const userProviderProfile = await ProviderProfile.findOne({
+      where: { userId }
+    });
+
     // Resolve provider profile id (services reference provider profile id)
     const provider = await ProviderProfile.findOne({
       where: {
@@ -40,6 +45,15 @@ export const createBooking = async (bookingData) => {
     }
 
     const providerProfileId = provider.id;
+
+    // Prevent provider from booking themselves
+    if (userProviderProfile && userProviderProfile.id === providerProfileId) {
+      return { 
+        success: false, 
+        message: 'You cannot book your own service. Please use a different provider.', 
+        statusCode: 400 
+      };
+    }
 
     // Check if service exists and belongs to provider profile (only if serviceId is provided)
     let service = null;

@@ -28,20 +28,39 @@ export const initializeSocket = (server) => {
 
   // Authentication middleware
   io.use(async (socket, next) => {
+    let token;
     try {
-      const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
+      token = socket.handshake.auth?.token 
+        || socket.handshake.headers.authorization?.split(' ')[1]
+        || (Array.isArray(socket.handshake.query?.token) 
+            ? socket.handshake.query?.token[0] 
+            : socket.handshake.query?.token);
       
       if (!token) {
         return next(new Error('Authentication error: No token provided'));
       }
 
-      const decoded = jwt.verify(token, config.jwtSecret);
-      socket.userId = decoded.id;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || config.jwtSecret || 'your-secret-key');
+      
+      // Handle both 'id' and 'userId' in JWT payload (tokens use 'userId')
+      socket.userId = decoded.id || decoded.userId;
       socket.userRole = decoded.role;
       
+      if (!socket.userId) {
+        console.error('Socket authentication error: No user ID in token', decoded);
+        return next(new Error('Authentication error: Invalid token structure'));
+      }
+      
+      console.log(`✅ Socket authenticated user ${socket.userId} with role ${socket.userRole || 'none'}`);
       next();
     } catch (error) {
-      console.error('Socket authentication error:', error);
+      console.error('Socket authentication error:', error.message);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        tokenPreview: token ? token.substring(0, 20) + '...' : 'No token',
+        tokenLength: token ? token.length : 0
+      });
       next(new Error('Authentication error: Invalid token'));
     }
   });

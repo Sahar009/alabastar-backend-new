@@ -199,6 +199,27 @@ class AuthController {
     }
   }
 
+  async uploadProfilePicture(req, res) {
+    try {
+      if (!req.uploadResults || !req.uploadResults.document) {
+        return messageHandler(res, BAD_REQUEST, 'No profile picture uploaded');
+      }
+
+      const userId = req.user.userId;
+      const uploadData = req.uploadResults.document;
+
+      const result = await authService.updateProfilePicture(userId, uploadData);
+
+      return messageHandler(res, SUCCESS, 'Profile picture updated successfully', result);
+    } catch (error) {
+      console.error('Profile picture upload error:', error);
+      if (error.message === 'User not found') {
+        return messageHandler(res, BAD_REQUEST, error.message);
+      }
+      return messageHandler(res, INTERNAL_SERVER_ERROR, error.message || 'Failed to upload profile picture');
+    }
+  }
+
   async changePassword(req, res) {
     try {
       const userId = req.user.userId;
