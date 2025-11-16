@@ -3,29 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <title>Welcome to Alabastar!</title>
+    <!--[if mso]>
+    <style type="text/css">
+      body, table, td, a { font-family: Arial, sans-serif !important; }
+    </style>
+    <![endif]-->
   </head>
   <body
     style="
       margin: 0;
       padding: 0;
-      background: linear-gradient(135deg, #FF9900 0%, #E6008A 100%);
+      background-color: #f1f5f9;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
       text-align: center;
       padding: 20px 10px;
     "
   >
-    <div
-      style="
-        margin: 20px auto;
-        padding: 40px 20px;
-        max-width: 600px;
-        background: #ffffff;
-        border: none;
-        border-radius: 20px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-      "
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      width="100%"
+      style="background-color: #f1f5f9; padding: 20px 10px;"
     >
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            width="600"
+            style="
+              max-width: 600px;
+              background-color: #ffffff;
+              border-radius: 16px;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+              overflow: hidden;
+            "
+          >
+            <tr>
+              <td style="padding: 40px 20px;">
+                <div
+                  style="
+                    margin: 0 auto;
+                    padding: 0;
+                    max-width: 600px;
+                    background: #ffffff;
+                    border: none;
+                    border-radius: 20px;
+                  "
+                >
       <!-- Logo -->
       <div style="width: 100%; margin: 0 auto 40px; text-align: center;">
         <a href="<%= process.env.FRONTEND_URL || 'http://localhost:3000' %>" style="text-decoration: none; display: inline-block;">
@@ -182,12 +215,17 @@
           </a>
         </div>
 
-        <p style="color: #000000; font-size: 14px; margin: 20px 0">
-          You are receiving this email because you registered with Alabastar.
-          All rights reserved.
-        </p>
-      </div>
-    </div>
+                <p style="color: #000000; font-size: 14px; margin: 20px 0">
+                  You are receiving this email because you registered with Alabastar.
+                  All rights reserved.
+                </p>
+              </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>
 

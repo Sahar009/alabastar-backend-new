@@ -37,27 +37,51 @@ export const createBookingController = async (req, res) => {
 
 export const getBookingsController = async (req, res) => {
   try {
-    console.log('Fetching bookings for user:', req.user.userId);
+    console.log('========================================');
+    console.log('[BookingController] GET /api/bookings');
+    console.log('========================================');
+    console.log('[BookingController] Fetching bookings for user:', req.user.userId);
+    console.log('[BookingController] User details:', {
+      id: req.user.id,
+      userId: req.user.userId,
+      email: req.user.email,
+      role: req.user.role
+    });
+    console.log('[BookingController] Query params:', req.query);
     
-    const userId = req.user.userId;
+    const userId = req.user.userId || req.user.id;
     const userType = req.query.userType || 'customer';
     const filters = {
       status: req.query.status,
-      page: req.query.page,
-      limit: req.query.limit,
+      page: req.query.page || 1,
+      limit: req.query.limit || 50,
       startDate: req.query.startDate,
       endDate: req.query.endDate
     };
 
+    console.log(`[BookingController] Parsed - userId: ${userId}, userType: ${userType}, filters:`, JSON.stringify(filters, null, 2));
+
     const result = await getBookings(userId, userType, filters);
+    
+    console.log(`[BookingController] Service returned: success=${result.success}, statusCode=${result.statusCode}`);
+    console.log(`[BookingController] Bookings count: ${result.data?.bookings?.length || 0}`);
+    console.log(`[BookingController] Response structure:`, {
+      hasData: !!result.data,
+      hasBookings: !!result.data?.bookings,
+      bookingsIsArray: Array.isArray(result.data?.bookings),
+      bookingsLength: result.data?.bookings?.length || 0
+    });
+    console.log('========================================\n');
     
     res.status(result.statusCode).json(result);
   } catch (error) {
-    console.error('Error in getBookingsController:', error);
+    console.error('[BookingController] Error in getBookingsController:', error);
+    console.error('[BookingController] Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
-      statusCode: 500
+      statusCode: 500,
+      error: error.message
     });
   }
 };
@@ -85,12 +109,22 @@ export const getBookingByIdController = async (req, res) => {
 
 export const updateBookingStatusController = async (req, res) => {
   try {
-    console.log('Updating booking status:', req.params.id, req.body);
+    console.log('[BookingController] Updating booking status:', req.params.id, req.body);
+    console.log('[BookingController] User:', { userId: req.user.userId, role: req.user.role });
     
     const { id } = req.params;
     const { status, notes } = req.body;
     const userId = req.user.userId;
-    const userType = req.query.userType || 'customer';
+    
+    // Determine userType from user's role, fallback to query param, then default to customer
+    let userType = req.query.userType;
+    if (!userType && req.user.role === 'provider') {
+      userType = 'provider';
+    } else if (!userType) {
+      userType = 'customer';
+    }
+
+    console.log('[BookingController] Determined userType:', userType);
 
     if (!status) {
       return res.status(400).json({
@@ -102,9 +136,11 @@ export const updateBookingStatusController = async (req, res) => {
 
     const result = await updateBookingStatus(id, userId, userType, status, notes);
     
+    console.log('[BookingController] Update result:', result.success ? 'Success' : result.message);
     res.status(result.statusCode).json(result);
   } catch (error) {
-    console.error('Error in updateBookingStatusController:', error);
+    console.error('[BookingController] Error in updateBookingStatusController:', error);
+    console.error('[BookingController] Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

@@ -1,4 +1,4 @@
-import { User, ProviderProfile, ProviderDocument, ProviderRegistrationProgress, ProviderSetting } from '../schema/index.js';
+import { User, ProviderProfile, ProviderDocument, ProviderRegistrationProgress, ProviderSetting, Review } from '../schema/index.js';
 import { Service } from '../schema/index.js';
 import { sendEmail } from '../modules/notifications/email.js';
 import NotificationHelper from '../utils/notificationHelper.js';
@@ -728,7 +728,97 @@ class ProviderService {
       throw new Error('Provider not found');
     }
 
-    return provider;
+    // Get reviews and ratings
+    console.log('[ProviderService] Fetching reviews for providerId:', providerId);
+    
+    // First check if any reviews exist for this provider
+    const reviewCount = await Review.count({
+      where: {
+        providerId: providerId,
+        isVisible: true
+      }
+    });
+    console.log('[ProviderService] Total reviews count for provider:', reviewCount);
+    
+    // If no reviews, log all providerIds in reviews table for debugging
+    if (reviewCount === 0) {
+      const allReviewProviderIds = await Review.findAll({
+        attributes: ['providerId'],
+        group: ['providerId'],
+        raw: true
+      });
+      console.log('[ProviderService] ⚠️ No reviews found for providerId:', providerId);
+      console.log('[ProviderService] Available providerIds in reviews table:', allReviewProviderIds.map(r => r.providerId));
+    }
+    
+    const reviews = await Review.findAll({
+      where: {
+        providerId: providerId,
+        isVisible: true
+      },
+      include: [
+        {
+          model: User,
+          foreignKey: 'reviewerId',
+          attributes: ['id', 'fullName', 'avatarUrl']
+        }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
+
+    console.log('[ProviderService] Reviews found:', reviews.length);
+    if (reviews.length > 0) {
+      console.log('[ProviderService] First review sample:', {
+        id: reviews[0].id,
+        rating: reviews[0].rating,
+        comment: reviews[0].comment?.substring(0, 50),
+        hasUser: !!reviews[0].User,
+        userFullName: reviews[0].User?.fullName,
+      });
+    }
+
+    // Calculate rating statistics
+    const allReviews = await Review.findAll({
+      where: {
+        providerId: providerId,
+        isVisible: true
+      },
+      attributes: ['rating']
+    });
+
+    console.log('[ProviderService] Total reviews count:', allReviews.length);
+
+    const averageRating = allReviews.length > 0
+      ? allReviews.reduce((sum, review) => sum + review.rating, 0) / allReviews.length
+      : 0;
+
+    console.log('[ProviderService] Calculated average rating:', averageRating);
+
+    // Add reviews and ratings to provider data
+    const providerData = provider.toJSON();
+    // Serialize reviews to JSON to ensure User associations are included
+    providerData.reviews = reviews.map(review => {
+      const reviewJson = review.toJSON();
+      console.log('[ProviderService] Serialized review:', {
+        id: reviewJson.id,
+        rating: reviewJson.rating,
+        hasUser: !!reviewJson.User,
+        userFullName: reviewJson.User?.fullName,
+      });
+      return reviewJson;
+    });
+    providerData.ratingAverage = Math.round(averageRating * 10) / 10;
+    providerData.ratingCount = allReviews.length;
+
+    console.log('[ProviderService] Final provider data:', {
+      hasReviews: providerData.reviews.length > 0,
+      reviewCount: providerData.reviews.length,
+      ratingAverage: providerData.ratingAverage,
+      ratingCount: providerData.ratingCount,
+    });
+
+    return providerData;
   }
 
   async getProviderProfileByUserId(userId) {
@@ -775,6 +865,11 @@ class ProviderService {
         {
           model: User,
           attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl']
+        },
+        {
+          model: ProviderDocument,
+          attributes: ['id', 'url', 'status', 'type'],
+          required: false
         }
       ],
       limit,
@@ -789,7 +884,34 @@ class ProviderService {
       ]
     });
 
-    // Add computed fields
+    // Get provider IDs to calculate ratings
+    const providerIds = providers.rows.map(p => p.id);
+    
+    // Calculate ratings for all providers in batch
+    const ratingsMap = {};
+    if (providerIds.length > 0) {
+      const reviews = await Review.findAll({
+        where: {
+          providerId: { [Op.in]: providerIds },
+          isVisible: true
+        },
+        attributes: [
+          'providerId',
+          [sequelize.fn('AVG', sequelize.col('rating')), 'averageRating'],
+          [sequelize.fn('COUNT', sequelize.col('id')), 'totalReviews']
+        ],
+        group: ['providerId']
+      });
+
+      reviews.forEach(review => {
+        ratingsMap[review.providerId] = {
+          ratingAverage: parseFloat(review.getDataValue('averageRating')) || 0,
+          ratingCount: parseInt(review.getDataValue('totalReviews')) || 0
+        };
+      });
+    }
+
+    // Add computed fields including ratings
     const providersWithStatus = providers.rows.map(provider => {
       const isTopListed = provider.topListingEndDate && new Date(provider.topListingEndDate) > new Date();
       const daysRemaining = isTopListed 
@@ -803,12 +925,16 @@ class ProviderService {
             .map(doc => ({ url: doc.url, id: doc.id }))
         : [];
 
+      // Get ratings from map or default to 0
+      const ratingInfo = ratingsMap[provider.id] || { ratingAverage: 0, ratingCount: 0 };
 
       return {
         ...provider.toJSON(),
         isTopListed,
         daysRemaining,
-        brandImages: brandImages
+        brandImages: brandImages,
+        ratingAverage: Math.round(ratingInfo.ratingAverage * 10) / 10,
+        ratingCount: ratingInfo.ratingCount
       };
     });
 
@@ -884,7 +1010,34 @@ class ProviderService {
       order: orderClause
     });
 
-    // Add computed fields
+    // Get provider IDs to calculate ratings
+    const providerIds = providers.rows.map(p => p.id);
+    
+    // Calculate ratings for all providers in batch
+    const ratingsMap = {};
+    if (providerIds.length > 0) {
+      const reviews = await Review.findAll({
+        where: {
+          providerId: { [Op.in]: providerIds },
+          isVisible: true
+        },
+        attributes: [
+          'providerId',
+          [sequelize.fn('AVG', sequelize.col('rating')), 'averageRating'],
+          [sequelize.fn('COUNT', sequelize.col('id')), 'totalReviews']
+        ],
+        group: ['providerId']
+      });
+
+      reviews.forEach(review => {
+        ratingsMap[review.providerId] = {
+          ratingAverage: parseFloat(review.getDataValue('averageRating')) || 0,
+          ratingCount: parseInt(review.getDataValue('totalReviews')) || 0
+        };
+      });
+    }
+
+    // Add computed fields including ratings
     const providersWithStatus = providers.rows.map(provider => {
       const isTopListed = provider.topListingEndDate && new Date(provider.topListingEndDate) > new Date();
       const daysRemaining = isTopListed 
@@ -898,12 +1051,16 @@ class ProviderService {
             .map(doc => ({ url: doc.url, id: doc.id }))
         : [];
 
+      // Get ratings from map or default to 0
+      const ratingInfo = ratingsMap[provider.id] || { ratingAverage: 0, ratingCount: 0 };
 
       return {
         ...provider.toJSON(),
         isTopListed,
         daysRemaining,
-        brandImages: brandImages
+        brandImages: brandImages,
+        ratingAverage: Math.round(ratingInfo.ratingAverage * 10) / 10,
+        ratingCount: ratingInfo.ratingCount
       };
     });
 

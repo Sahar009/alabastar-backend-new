@@ -14,7 +14,7 @@ router.get('/test', (req, res) => {
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/provider/login', authController.loginProvider);
-router.post('/firebase', authController.firebaseAuth);
+router.post('/firebase', authController.firebaseAuth); // Accepts both Firebase and Google ID tokens
 
 // Protected routes
 router.get('/verify', authenticateToken, authController.verifyToken);

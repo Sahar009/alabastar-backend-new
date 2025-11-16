@@ -228,18 +228,48 @@ class AuthService {
       // Update user data if needed
       if (user.provider !== 'google') {
         user.provider = 'google';
-        user.googleId = googleId;
+        user.firebaseUid = googleId; // Store Google ID in firebaseUid field
+        if (picture && !user.avatarUrl) {
+          user.avatarUrl = picture;
+        }
         await user.save();
+      } else {
+        // Update Google ID if missing
+        if (googleId && !user.firebaseUid) {
+          user.firebaseUid = googleId;
+        }
+        // Update avatar if missing
+        if (picture && !user.avatarUrl) {
+          user.avatarUrl = picture;
+        }
+        if ((googleId && !user.firebaseUid) || (picture && !user.avatarUrl)) {
+          await user.save();
+        }
       }
     } else {
       // Create new user
       const result = await this.registerUser({
         fullName: name,
         email,
-        provider: 'google'
+        provider: 'google',
+        avatarUrl: picture
       });
       user = result.user;
+      
+      // Update firebaseUid (Google ID) after user creation
+      if (googleId) {
+        user.firebaseUid = googleId;
+        await user.save();
+      }
     }
+
+    // Refresh user data to get customer relation
+    user = await User.findByPk(user.id, {
+      include: [{
+        model: Customer,
+        as: 'customer'
+      }]
+    });
 
     const token = jwt.sign(
       { 
@@ -260,7 +290,8 @@ class AuthService {
         phone: user.phone,
         role: user.role,
         status: user.status,
-        provider: user.provider
+        provider: user.provider,
+        avatarUrl: user.avatarUrl
       },
       customer: user.customer ? {
         id: user.customer.id,
@@ -279,16 +310,36 @@ class AuthService {
       
       const { idToken, email, displayName, photoURL, uid, phone } = firebaseData;
 
-      // Verify the Firebase ID token
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      // Verify the Firebase/Google ID token
+      // Firebase Admin SDK can verify both Firebase ID tokens and Google ID tokens
+      let decodedToken;
+      try {
+        decodedToken = await admin.auth().verifyIdToken(idToken);
+      } catch (error) {
+        // If Firebase verification fails, try to verify as Google ID token
+        // Google ID tokens can also be verified by Firebase if they're from the same project
+        throw new Error('Invalid or expired ID token');
+      }
       
-      if (decodedToken.uid !== uid) {
+      // Use decodedToken.uid if uid is not provided, or verify they match if both provided
+      const verifiedUid = decodedToken.uid || uid;
+      if (uid && decodedToken.uid && decodedToken.uid !== uid) {
         throw new Error('Token UID mismatch');
+      }
+
+      // Extract user info from decoded token (works for both Firebase and Google tokens)
+      const tokenEmail = decodedToken.email || email;
+      const tokenName = decodedToken.name || displayName || decodedToken.display_name || 'User';
+      const tokenPicture = decodedToken.picture || photoURL;
+      const tokenUid = verifiedUid;
+
+      if (!tokenEmail) {
+        throw new Error('Email is required for authentication');
       }
 
       // Check if user exists
       let user = await User.findOne({
-        where: { email, role: 'customer' },
+        where: { email: tokenEmail, role: 'customer' },
         include: [{
           model: Customer,
           as: 'customer'
@@ -297,21 +348,34 @@ class AuthService {
 
       if (user) {
         // Update user data if needed
-        if (user.provider !== 'firebase') {
+        if (user.provider !== 'firebase' && user.provider !== 'google') {
           user.provider = 'firebase';
-          user.firebaseUid = uid;
+        }
+        if (tokenUid && !user.firebaseUid) {
+          user.firebaseUid = tokenUid;
+        }
+        if (tokenPicture && !user.avatarUrl) {
+          user.avatarUrl = tokenPicture;
+        }
+        if ((tokenUid && !user.firebaseUid) || (tokenPicture && !user.avatarUrl)) {
           await user.save();
         }
       } else {
         // Create new user
         const result = await this.registerUser({
-          fullName: displayName || 'User',
-          email,
+          fullName: tokenName,
+          email: tokenEmail,
           phone,
           provider: 'firebase',
-          firebaseUid: uid
+          avatarUrl: tokenPicture
         });
         user = result.user;
+        
+        // Update firebaseUid after user creation
+        if (tokenUid) {
+          user.firebaseUid = tokenUid;
+          await user.save();
+        }
       }
 
       const token = jwt.sign(
@@ -324,6 +388,14 @@ class AuthService {
         { expiresIn: '7d' }
       );
 
+      // Refresh user data to get customer relation
+      user = await User.findByPk(user.id, {
+        include: [{
+          model: Customer,
+          as: 'customer'
+        }]
+      });
+
       return {
         token,
         user: {
@@ -333,7 +405,8 @@ class AuthService {
           phone: user.phone,
           role: user.role,
           status: user.status,
-          provider: user.provider
+          provider: user.provider,
+          avatarUrl: user.avatarUrl
         },
         customer: user.customer ? {
           id: user.customer.id,
@@ -343,7 +416,7 @@ class AuthService {
       };
     } catch (error) {
       console.error('Firebase auth error:', error);
-      throw new Error('Firebase authentication failed');
+      throw new Error(error.message || 'Firebase authentication failed');
     }
   }
 

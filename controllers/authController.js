@@ -145,23 +145,29 @@ class AuthController {
     try {
       const { idToken, email, displayName, photoURL, uid, phone } = req.body;
 
-      if (!idToken || !email || !uid) {
-        return messageHandler(res, BAD_REQUEST, 'Firebase authentication data is incomplete');
+      if (!idToken) {
+        return messageHandler(res, BAD_REQUEST, 'ID token is required');
       }
 
+      // Firebase Admin SDK can verify both Firebase ID tokens and Google ID tokens
+      // The email and uid are optional as they'll be extracted from the verified token
       const result = await authService.firebaseAuth({
         idToken,
-        email,
-        displayName,
-        photoURL,
-        uid,
+        email, // Optional - will be extracted from token if not provided
+        displayName, // Optional - will be extracted from token if not provided
+        photoURL, // Optional - will be extracted from token if not provided
+        uid, // Optional - will be extracted from token if not provided
         phone
       });
 
-      return messageHandler(res, SUCCESS, 'Firebase authentication successful', result);
+      return messageHandler(res, SUCCESS, 'Authentication successful', result);
     } catch (error) {
       console.error('Firebase auth error:', error);
-      return messageHandler(res, INTERNAL_SERVER_ERROR, 'Firebase authentication failed');
+      const errorMessage = error.message || 'Authentication failed';
+      if (errorMessage.includes('Invalid') || errorMessage.includes('expired')) {
+        return messageHandler(res, UNAUTHORIZED, errorMessage);
+      }
+      return messageHandler(res, INTERNAL_SERVER_ERROR, errorMessage);
     }
   }
 

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Booking Completed - Alabastar</title>
+    <!--[if mso]>
+    <style type="text/css">
+      body, table, td, a { font-family: Arial, sans-serif !important; }
+    </style>
+    <![endif]-->
+  </head>
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background-color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    "
+  >
+    <!-- Main Container -->
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      width="100%"
+      style="background-color: #f1f5f9; padding: 20px 10px;"
+    >
+      <tr>
+        <td align="center">
+          <!-- Email Container -->
+          <table
+            role="presentation"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            width="600"
+            style="
+              max-width: 600px;
+              background-color: #ffffff;
+              border-radius: 16px;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+              overflow: hidden;
+            "
+          >
+            <!-- Header with Gradient -->
+            <tr>
+              <td
+                style="
+                  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                  padding: 40px 30px;
+                  text-align: center;
+                "
+              >
+                <!-- Logo -->
+                <a
+                  href="<%= process.env.FRONTEND_URL || 'http://localhost:3000' %>"
+                  style="text-decoration: none; display: inline-block;"
+                >
+                  <img
+                    src="https://res.cloudinary.com/do537qymc/image/upload/v1762048807/logo_oy6yhh.png"
+                    alt="Alabastar Logo"
+                    style="
+                      width: auto;
+                      height: 60px;
+                      max-width: 180px;
+                      display: block;
+                      margin: 0 auto;
+                    "
+                  />
+                </a>
+              </td>
+            </tr>
+
+            <!-- Content -->
+            <tr>
+              <td style="padding: 40px 30px;">
+                <!-- Success Icon -->
+                <div style="text-align: center; margin-bottom: 24px;">
+                  <div
+                    style="
+                      width: 80px;
+                      height: 80px;
+                      background: linear-gradient(135deg, #3b82f6, #2563eb);
+                      border-radius: 50%;
+                      display: inline-flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-size: 40px;
+                      margin: 0 auto;
+                    "
+                  >
+                    ✨
+                  </div>
+                </div>
+
+                <!-- Title -->
+                <h1
+                  style="
+                    color: #0f172a;
+                    font-size: 28px;
+                    font-weight: 700;
+                    margin: 0 0 16px;
+                    text-align: center;
+                    line-height: 1.3;
+                  "
+                >
+                  Service Completed! 🎊
+                </h1>
+
+                <!-- Subtitle -->
+                <p
+                  style="
+                    color: #64748b;
+                    font-size: 16px;
+                    margin: 0 0 32px;
+                    text-align: center;
+                    line-height: 1.6;
+                  "
+                >
+                  Your booking with <strong style="color: #0f172a;"><%= providerName %></strong> has been completed successfully.
+                </p>
+
+                <!-- Booking Details Card -->
+                <table
+                  role="presentation"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  width="100%"
+                  style="
+                    background-color: #eff6ff;
+                    border-radius: 12px;
+                    padding: 24px;
+                    margin-bottom: 24px;
+                    border: 1px solid #bfdbfe;
+                  "
+                >
+                  <!-- Service -->
+                  <tr>
+                    <td style="padding-bottom: 16px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                        <tr>
+                          <td width="120" style="color: #1e40af; font-size: 14px; font-weight: 600;">
+                            Service:
+                          </td>
+                          <td style="color: #0f172a; font-size: 16px; font-weight: 600;">
+                            <%= serviceName || 'General Service' %>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Provider -->
+                  <tr>
+                    <td style="padding-bottom: 16px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                        <tr>
+                          <td width="120" style="color: #1e40af; font-size: 14px; font-weight: 600;">
+                            Provider:
+                          </td>
+                          <td style="color: #0f172a; font-size: 16px; font-weight: 500;">
+                            <%= providerName %>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Date & Time -->
+                  <tr>
+                    <td style="padding-bottom: 16px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                        <tr>
+                          <td width="120" style="color: #1e40af; font-size: 14px; font-weight: 600;">
+                            Completed Date:
+                          </td>
+                          <td style="color: #0f172a; font-size: 16px; font-weight: 500;">
+                            <%= completedDate %>
+                            <br />
+                            <span style="color: #64748b; font-size: 14px;"><%= completedTime %></span>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Amount -->
+                  <% if (totalAmount) { %>
+                  <tr>
+                    <td>
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                        <tr>
+                          <td width="120" style="color: #1e40af; font-size: 14px; font-weight: 600;">
+                            Amount Paid:
+                          </td>
+                          <td style="color: #0f172a; font-size: 20px; font-weight: 700;">
+                            ₦<%= parseFloat(totalAmount || 0).toLocaleString() %>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <% } %>
+                </table>
+
+                <!-- Review CTA -->
+                <div
+                  style="
+                    background: linear-gradient(135deg, #FF9900 0%, #E6008A 100%);
+                    border-radius: 12px;
+                    padding: 24px;
+                    margin-bottom: 24px;
+                    text-align: center;
+                  "
+                >
+                  <h2
+                    style="
+                      color: #ffffff;
+                      font-size: 20px;
+                      font-weight: 700;
+                      margin: 0 0 12px;
+                      line-height: 1.3;
+                    "
+                  >
+                    How was your experience?
+                  </h2>
+                  <p
+                    style="
+                      color: #ffffff;
+                      font-size: 16px;
+                      margin: 0 0 20px;
+                      line-height: 1.6;
+                      opacity: 0.95;
+                    "
+                  >
+                    Help others by sharing your feedback about <%= providerName %>.
+                  </p>
+                  <a
+                    href="<%= reviewUrl || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/bookings/' + bookingId + '/review' %>"
+                    style="
+                      display: inline-block;
+                      background: #ffffff;
+                      color: #E6008A;
+                      text-decoration: none;
+                      padding: 12px 28px;
+                      border-radius: 10px;
+                      font-weight: 600;
+                      font-size: 16px;
+                      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                      text-align: center;
+                    "
+                  >
+                    Leave a Review
+                  </a>
+                </div>
+
+                <!-- Action Buttons -->
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td align="center" style="padding: 8px 0;">
+                      <a
+                        href="<%= bookingUrl || (process.env.FRONTEND_URL || 'http://localhost:3000') + '/bookings/' + bookingId %>"
+                        style="
+                          display: inline-block;
+                          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                          color: #ffffff;
+                          text-decoration: none;
+                          padding: 14px 32px;
+                          border-radius: 10px;
+                          font-weight: 600;
+                          font-size: 16px;
+                          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+                          text-align: center;
+                        "
+                      >
+                        View Booking Details
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td
+                style="
+                  background-color: #f8fafc;
+                  padding: 30px;
+                  text-align: center;
+                  border-top: 1px solid #e2e8f0;
+                "
+              >
+                <p style="margin: 0 0 16px; color: #64748b; font-size: 14px; line-height: 1.6;">
+                  Need help? Contact our support team at
+                  <a
+                    href="mailto:support@alabastar.app"
+                    style="color: #E6008A; text-decoration: none; font-weight: 600;"
+                  >
+                    support@alabastar.app
+                  </a>
+                </p>
+
+                <!-- Social Links -->
+                <table
+                  role="presentation"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  align="center"
+                  style="margin: 20px auto;"
+                >
+                  <tr>
+                    <td style="padding: 0 8px;">
+                      <a
+                        href="https://www.tiktok.com/@alabastar"
+                        style="text-decoration: none; display: inline-block;"
+                      >
+                        <img
+                          src="https://res.cloudinary.com/do537qymc/image/upload/v1762051479/TikTok_Logo_Alternative_1_svg5zs.png"
+                          alt="TikTok"
+                          width="32"
+                          height="32"
+                          style="display: block; border-radius: 4px;"
+                        />
+                      </a>
+                    </td>
+                    <td style="padding: 0 8px;">
+                      <a
+                        href="https://www.instagram.com/alabastar"
+                        style="text-decoration: none; display: inline-block;"
+                      >
+                        <img
+                          src="https://res.cloudinary.com/do537qymc/image/upload/v1762051436/Instagram_Symbol_2_kmjhzj.webp"
+                          alt="Instagram"
+                          width="32"
+                          height="32"
+                          style="display: block; border-radius: 4px;"
+                        />
+                      </a>
+                    </td>
+                    <td style="padding: 0 8px;">
+                      <a
+                        href="https://www.facebook.com/alabastar"
+                        style="text-decoration: none; display: inline-block;"
+                      >
+                        <img
+                          src="https://res.cloudinary.com/do537qymc/image/upload/v1762050913/Symbol_sdjeaj.png"
+                          alt="Facebook"
+                          width="32"
+                          height="32"
+                          style="display: block; border-radius: 4px;"
+                        />
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin: 20px 0 0; color: #94a3b8; font-size: 12px; line-height: 1.5;">
+                  © <%= new Date().getFullYear() %> Alabastar. All rights reserved.<br />
+                  You are receiving this email because you completed a booking on Alabastar.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+
