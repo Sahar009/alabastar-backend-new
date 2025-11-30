@@ -91,38 +91,24 @@ export const createReview = async (req, res) => {
       // Don't fail the review creation if notification fails
     }
 
-    // Try to fetch the created review with associations
-    // If this fails, return the review that was already created
-    let createdReview;
-    try {
-      createdReview = await Review.findOne({
-        where: { id: review.id },
-        include: [
-          { 
-            model: User, 
-            attributes: ['id', 'fullName', 'email']
-          },
-          { 
-            model: ProviderProfile, 
-            attributes: ['id', 'businessName', 'category']
-          },
-          { 
-            model: Booking, 
-            attributes: ['id', 'scheduledAt', 'status', 'totalAmount'],
-            as: 'booking'
-          }
-        ]
-      });
-    } catch (fetchError) {
-      console.error('Error fetching review with associations:', fetchError);
-      // If fetching with associations fails, return the plain review object
-      createdReview = review.toJSON();
-    }
-
-    // If still no review data, use the plain review
-    if (!createdReview) {
-      createdReview = review.toJSON();
-    }
+    // Fetch the created review with associations
+    const createdReview = await Review.findOne({
+      where: { id: review.id },
+      include: [
+        { 
+          model: User, 
+          attributes: ['id', 'fullName', 'email']
+        },
+        { 
+          model: ProviderProfile, 
+          attributes: ['id', 'businessName', 'category']
+        },
+        { 
+          model: Booking, 
+          attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
+        }
+      ]
+    });
 
     res.status(CREATED).json({
       success: true,

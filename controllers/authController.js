@@ -145,29 +145,23 @@ class AuthController {
     try {
       const { idToken, email, displayName, photoURL, uid, phone } = req.body;
 
-      if (!idToken) {
-        return messageHandler(res, BAD_REQUEST, 'ID token is required');
+      if (!idToken || !email || !uid) {
+        return messageHandler(res, BAD_REQUEST, 'Firebase authentication data is incomplete');
       }
 
-      // Firebase Admin SDK can verify both Firebase ID tokens and Google ID tokens
-      // The email and uid are optional as they'll be extracted from the verified token
       const result = await authService.firebaseAuth({
         idToken,
-        email, // Optional - will be extracted from token if not provided
-        displayName, // Optional - will be extracted from token if not provided
-        photoURL, // Optional - will be extracted from token if not provided
-        uid, // Optional - will be extracted from token if not provided
+        email,
+        displayName,
+        photoURL,
+        uid,
         phone
       });
 
-      return messageHandler(res, SUCCESS, 'Authentication successful', result);
+      return messageHandler(res, SUCCESS, 'Firebase authentication successful', result);
     } catch (error) {
       console.error('Firebase auth error:', error);
-      const errorMessage = error.message || 'Authentication failed';
-      if (errorMessage.includes('Invalid') || errorMessage.includes('expired')) {
-        return messageHandler(res, UNAUTHORIZED, errorMessage);
-      }
-      return messageHandler(res, INTERNAL_SERVER_ERROR, errorMessage);
+      return messageHandler(res, INTERNAL_SERVER_ERROR, 'Firebase authentication failed');
     }
   }
 
@@ -202,27 +196,6 @@ class AuthController {
         return messageHandler(res, BAD_REQUEST, error.message);
       }
       return messageHandler(res, INTERNAL_SERVER_ERROR, 'Profile update failed');
-    }
-  }
-
-  async uploadProfilePicture(req, res) {
-    try {
-      if (!req.uploadResults || !req.uploadResults.document) {
-        return messageHandler(res, BAD_REQUEST, 'No profile picture uploaded');
-      }
-
-      const userId = req.user.userId;
-      const uploadData = req.uploadResults.document;
-
-      const result = await authService.updateProfilePicture(userId, uploadData);
-
-      return messageHandler(res, SUCCESS, 'Profile picture updated successfully', result);
-    } catch (error) {
-      console.error('Profile picture upload error:', error);
-      if (error.message === 'User not found') {
-        return messageHandler(res, BAD_REQUEST, error.message);
-      }
-      return messageHandler(res, INTERNAL_SERVER_ERROR, error.message || 'Failed to upload profile picture');
     }
   }
 

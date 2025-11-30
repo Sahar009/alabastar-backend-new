@@ -31,10 +31,6 @@ export const createBooking = async (bookingData) => {
     });
 
     // Resolve provider profile id (services reference provider profile id)
-    // NOTE: providerId from client can be either userId or providerProfile.id
-    // We need to always convert it to providerProfile.id for storage
-    console.log(`[BookingService] Creating booking - received providerId: ${providerId}`);
-    
     const provider = await ProviderProfile.findOne({
       where: {
         [Op.or]: [
@@ -45,18 +41,10 @@ export const createBooking = async (bookingData) => {
     });
 
     if (!provider) {
-      console.error(`[BookingService] Provider not found for providerId: ${providerId}`);
       return { success: false, message: 'Provider not available', statusCode: 404 };
     }
 
     const providerProfileId = provider.id;
-    
-    // Log if there was a conversion
-    if (provider.userId === providerId) {
-      console.log(`[BookingService] Converted userId ${providerId} to ProviderProfile.id ${providerProfileId}`);
-    } else {
-      console.log(`[BookingService] Using ProviderProfile.id directly: ${providerProfileId}`);
-    }
 
     // Prevent provider from booking themselves
     if (userProviderProfile && userProviderProfile.id === providerProfileId) {
@@ -114,12 +102,9 @@ export const createBooking = async (bookingData) => {
     }
 
     // Create booking
-    // CRITICAL: Always store providerProfile.id, never userId
-    console.log(`[BookingService] Creating booking with providerId (ProviderProfile.id): ${providerProfileId}`);
-    
     const booking = await Booking.create({
       userId,
-      providerId: providerProfileId, // ALWAYS store provider profile id, never userId
+      providerId: providerProfileId, // store provider profile id per FK
       serviceId,
       scheduledAt: new Date(scheduledAt),
       locationAddress,
@@ -130,8 +115,6 @@ export const createBooking = async (bookingData) => {
       totalAmount: totalAmount,
       notes
     });
-    
-    console.log(`[BookingService] Booking created successfully: ID=${booking.id}, providerId=${booking.providerId}, userId=${booking.userId}`);
 
     // Fetch booking with related data
     const bookingWithDetails = await Booking.findByPk(booking.id, {
@@ -209,12 +192,12 @@ export const getBookings = async (userId, userType = 'customer', filters = {}) =
     {
       model: User,
       as: 'customer',
-      attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl']
+      attributes: ['id', 'fullName', 'email', 'phone']
     },
     {
       model: ProviderProfile,
       as: 'providerProfile',
-      include: [{ model: User, attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl'] }]
+      include: [{ model: User, attributes: ['id', 'fullName', 'email', 'phone'] }]
     },
     {
       model: Service,
@@ -233,56 +216,10 @@ export const getBookings = async (userId, userType = 'customer', filters = {}) =
     // Filter by user type
     if (userType === 'customer') {
       whereClause.userId = userId;
-    } else if (userType === 'provider') {
-      // For providers, we need to get their ProviderProfile ID from their User ID
-      console.log(`[BookingService] Fetching provider bookings for userId: ${userId}`);
-      
-      // Normalize userId to string for comparison
-      const normalizedUserId = String(userId).trim();
-      
-      const providerProfile = await ProviderProfile.findOne({
-        where: { userId: normalizedUserId }
-      });
-
-      if (!providerProfile) {
-        // Provider profile not found - try a direct query to see if there are any bookings
-        // that might have been created with this userId as providerId (edge case)
-        console.log(`[BookingService] No provider profile found for userId: ${userId}`);
-        console.log(`[BookingService] Checking if userId might be a providerId...`);
-        
-        // Check if this userId is actually a providerId in the bookings table
-        const directBookingCheck = await Booking.findOne({
-          where: { providerId: normalizedUserId },
-          limit: 1
-        });
-        
-        if (directBookingCheck) {
-          // If bookings exist with this userId as providerId, use it directly
-          console.log(`[BookingService] Found bookings with userId as providerId, using direct query`);
-          whereClause.providerId = normalizedUserId;
-        } else {
-          // No provider profile and no bookings found
-          return {
-            success: true,
-            message: 'No provider profile found. Please complete your provider registration to receive bookings.',
-            statusCode: 200,
-            data: {
-              bookings: [],
-              pagination: {
-                currentPage: parseInt(page),
-                totalPages: 0,
-                totalItems: 0,
-                itemsPerPage: parseInt(limit)
-              }
-            }
-          };
-        }
-      } else {
-        console.log(`[BookingService] Found provider profile ID: ${providerProfile.id} for userId: ${userId}`);
-        // Use the provider profile ID to query bookings
-        whereClause.providerId = providerProfile.id;
-      }
-    }
+  } else if (userType === 'provider') {
+    // When provider views, they pass their provider profile id ideally; if a user id is passed, map externally.
+    whereClause.providerId = userId;
+  }
 
     // Additional filters
     if (status) {
@@ -297,27 +234,6 @@ export const getBookings = async (userId, userType = 'customer', filters = {}) =
 
     const offset = (page - 1) * limit;
 
-    console.log(`[BookingService] Querying bookings with whereClause:`, JSON.stringify(whereClause, null, 2));
-    
-    // Debug: For providers, also check raw booking count before filters
-    if (userType === 'provider' && whereClause.providerId) {
-      const rawBookingCount = await Booking.count({
-        where: { providerId: whereClause.providerId }
-      });
-      console.log(`[BookingService] DEBUG: Total bookings in DB for providerId ${whereClause.providerId}: ${rawBookingCount}`);
-      
-      // If there are bookings but they don't match filters, log that too
-      if (status) {
-        const statusFilterCount = await Booking.count({
-          where: { 
-            providerId: whereClause.providerId,
-            status: status
-          }
-        });
-        console.log(`[BookingService] DEBUG: Bookings with status '${status}': ${statusFilterCount}`);
-      }
-    }
-    
     const { count, rows: bookings } = await Booking.findAndCountAll({
       where: whereClause,
       include: includeClause,
@@ -326,8 +242,6 @@ export const getBookings = async (userId, userType = 'customer', filters = {}) =
       offset: parseInt(offset)
     });
 
-    console.log(`[BookingService] Found ${count} bookings for userType: ${userType}, userId: ${userId}, after filters`);
-    
     return {
       success: true,
       message: 'Bookings retrieved successfully',
@@ -357,16 +271,7 @@ export const getBookingById = async (bookingId, userId, userType = 'customer') =
     if (userType === 'customer') {
       whereClause.userId = userId;
     } else if (userType === 'provider') {
-      // For providers, get their ProviderProfile ID from their User ID
-      const providerProfile = await ProviderProfile.findOne({
-        where: { userId: userId }
-      });
-
-      if (!providerProfile) {
-        return { success: false, message: 'Provider profile not found', statusCode: 404 };
-      }
-
-      whereClause.providerId = providerProfile.id;
+      whereClause.providerId = userId;
     }
 
     const booking = await Booking.findOne({
@@ -375,7 +280,7 @@ export const getBookingById = async (bookingId, userId, userType = 'customer') =
         {
           model: User,
           as: 'customer',
-          attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl']
+          attributes: ['id', 'fullName', 'email', 'phone']
         },
         {
           model: ProviderProfile,
@@ -383,7 +288,7 @@ export const getBookingById = async (bookingId, userId, userType = 'customer') =
           attributes: ['id', 'businessName', 'category'],
           include: [{
             model: User,
-            attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl']
+            attributes: ['id', 'fullName', 'email', 'phone']
           }]
         },
         {
@@ -415,16 +320,7 @@ export const updateBookingStatus = async (bookingId, userId, userType, newStatus
     if (userType === 'customer') {
       whereClause.userId = userId;
     } else if (userType === 'provider') {
-      // For providers, get their ProviderProfile ID from their User ID
-      const providerProfile = await ProviderProfile.findOne({
-        where: { userId: userId }
-      });
-
-      if (!providerProfile) {
-        return { success: false, message: 'Provider profile not found', statusCode: 404 };
-      }
-
-      whereClause.providerId = providerProfile.id;
+      whereClause.providerId = userId;
     }
 
     const booking = await Booking.findOne({ where: whereClause });

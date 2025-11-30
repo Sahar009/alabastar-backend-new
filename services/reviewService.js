@@ -79,7 +79,6 @@ class ReviewService {
         },
         { 
           model: Booking, 
-          as: 'booking',
           attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
@@ -186,7 +185,6 @@ class ReviewService {
         },
         { 
           model: Booking, 
-          as: 'booking',
           attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
@@ -259,7 +257,6 @@ class ReviewService {
         },
         { 
           model: Booking, 
-          as: 'booking',
           attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],
@@ -325,7 +322,6 @@ class ReviewService {
         },
         { 
           model: Booking, 
-          as: 'booking',
           attributes: ['id', 'scheduledAt', 'status', 'totalAmount']
         }
       ],

@@ -149,8 +149,8 @@ export const authenticateSuperAdmin = async (req, res, next) => {
     }
 
     // Check if super admin (created within first 30 days or has specific email)
-    const isSuperAdmin = admin.email === 'admin@alabastar.com' || 
-                        admin.email === 'superadmin@alabastar.com' ||
+    const isSuperAdmin = admin.email === 'admin@alabastar.ng' || 
+                        admin.email === 'superadmin@alabastar.ng' ||
                         (new Date() - admin.createdAt) < (30 * 24 * 60 * 60 * 1000); // 30 days
 
     if (!isSuperAdmin) {

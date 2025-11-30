@@ -112,12 +112,6 @@ router.put('/profile/:providerId', providerController.updateProviderProfile);
 // Update current user's provider profile (requires authentication)
 router.put('/profile', authenticateToken, providerController.updateCurrentProviderProfile);
 
-// Provider settings
-router.get('/settings', authenticateToken, providerController.getProviderSettings);
-router.put('/settings', authenticateToken, providerController.updateProviderSettings);
-router.put('/settings/notifications', authenticateToken, providerController.updateProviderNotificationSettings);
-router.put('/settings/privacy', authenticateToken, providerController.updateProviderPrivacySettings);
-
 // Get providers by category
 router.get('/category/:category', providerController.getProvidersByCategory);
 

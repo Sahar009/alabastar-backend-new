@@ -1,4 +1,4 @@
-import { User, ProviderProfile, ProviderDocument, ProviderRegistrationProgress, ProviderSetting, Review } from '../schema/index.js';
+import { User, ProviderProfile, ProviderDocument, ProviderRegistrationProgress } from '../schema/index.js';
 import { Service } from '../schema/index.js';
 import { sendEmail } from '../modules/notifications/email.js';
 import NotificationHelper from '../utils/notificationHelper.js';
@@ -8,24 +8,6 @@ import crypto from 'crypto';
 import { Op } from 'sequelize';
 import sequelize from '../database/db.js';
 import paystackService from '../providers/paystack/index.js';
-
-const DEFAULT_NOTIFICATION_SETTINGS = {
-  email: true,
-  sms: false,
-  push: true,
-};
-
-const DEFAULT_PRIVACY_SETTINGS = {
-  showProfile: true,
-  showContactInfo: true,
-  showPortfolio: true,
-};
-
-const DEFAULT_ACCOUNT_SETTINGS = {
-  autoAcceptBookings: false,
-  twoFactorAuth: false,
-  allowDirectMessages: true,
-};
 
 class ProviderService {
   // Get provider registration fee (this should be configurable by admin)
@@ -728,97 +710,7 @@ class ProviderService {
       throw new Error('Provider not found');
     }
 
-    // Get reviews and ratings
-    console.log('[ProviderService] Fetching reviews for providerId:', providerId);
-    
-    // First check if any reviews exist for this provider
-    const reviewCount = await Review.count({
-      where: {
-        providerId: providerId,
-        isVisible: true
-      }
-    });
-    console.log('[ProviderService] Total reviews count for provider:', reviewCount);
-    
-    // If no reviews, log all providerIds in reviews table for debugging
-    if (reviewCount === 0) {
-      const allReviewProviderIds = await Review.findAll({
-        attributes: ['providerId'],
-        group: ['providerId'],
-        raw: true
-      });
-      console.log('[ProviderService] ⚠️ No reviews found for providerId:', providerId);
-      console.log('[ProviderService] Available providerIds in reviews table:', allReviewProviderIds.map(r => r.providerId));
-    }
-    
-    const reviews = await Review.findAll({
-      where: {
-        providerId: providerId,
-        isVisible: true
-      },
-      include: [
-        {
-          model: User,
-          foreignKey: 'reviewerId',
-          attributes: ['id', 'fullName', 'avatarUrl']
-        }
-      ],
-      order: [['createdAt', 'DESC']],
-      limit: 10
-    });
-
-    console.log('[ProviderService] Reviews found:', reviews.length);
-    if (reviews.length > 0) {
-      console.log('[ProviderService] First review sample:', {
-        id: reviews[0].id,
-        rating: reviews[0].rating,
-        comment: reviews[0].comment?.substring(0, 50),
-        hasUser: !!reviews[0].User,
-        userFullName: reviews[0].User?.fullName,
-      });
-    }
-
-    // Calculate rating statistics
-    const allReviews = await Review.findAll({
-      where: {
-        providerId: providerId,
-        isVisible: true
-      },
-      attributes: ['rating']
-    });
-
-    console.log('[ProviderService] Total reviews count:', allReviews.length);
-
-    const averageRating = allReviews.length > 0
-      ? allReviews.reduce((sum, review) => sum + review.rating, 0) / allReviews.length
-      : 0;
-
-    console.log('[ProviderService] Calculated average rating:', averageRating);
-
-    // Add reviews and ratings to provider data
-    const providerData = provider.toJSON();
-    // Serialize reviews to JSON to ensure User associations are included
-    providerData.reviews = reviews.map(review => {
-      const reviewJson = review.toJSON();
-      console.log('[ProviderService] Serialized review:', {
-        id: reviewJson.id,
-        rating: reviewJson.rating,
-        hasUser: !!reviewJson.User,
-        userFullName: reviewJson.User?.fullName,
-      });
-      return reviewJson;
-    });
-    providerData.ratingAverage = Math.round(averageRating * 10) / 10;
-    providerData.ratingCount = allReviews.length;
-
-    console.log('[ProviderService] Final provider data:', {
-      hasReviews: providerData.reviews.length > 0,
-      reviewCount: providerData.reviews.length,
-      ratingAverage: providerData.ratingAverage,
-      ratingCount: providerData.ratingCount,
-    });
-
-    return providerData;
+    return provider;
   }
 
   async getProviderProfileByUserId(userId) {
@@ -865,11 +757,6 @@ class ProviderService {
         {
           model: User,
           attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl']
-        },
-        {
-          model: ProviderDocument,
-          attributes: ['id', 'url', 'status', 'type'],
-          required: false
         }
       ],
       limit,
@@ -884,34 +771,7 @@ class ProviderService {
       ]
     });
 
-    // Get provider IDs to calculate ratings
-    const providerIds = providers.rows.map(p => p.id);
-    
-    // Calculate ratings for all providers in batch
-    const ratingsMap = {};
-    if (providerIds.length > 0) {
-      const reviews = await Review.findAll({
-        where: {
-          providerId: { [Op.in]: providerIds },
-          isVisible: true
-        },
-        attributes: [
-          'providerId',
-          [sequelize.fn('AVG', sequelize.col('rating')), 'averageRating'],
-          [sequelize.fn('COUNT', sequelize.col('id')), 'totalReviews']
-        ],
-        group: ['providerId']
-      });
-
-      reviews.forEach(review => {
-        ratingsMap[review.providerId] = {
-          ratingAverage: parseFloat(review.getDataValue('averageRating')) || 0,
-          ratingCount: parseInt(review.getDataValue('totalReviews')) || 0
-        };
-      });
-    }
-
-    // Add computed fields including ratings
+    // Add computed fields
     const providersWithStatus = providers.rows.map(provider => {
       const isTopListed = provider.topListingEndDate && new Date(provider.topListingEndDate) > new Date();
       const daysRemaining = isTopListed 
@@ -925,16 +785,12 @@ class ProviderService {
             .map(doc => ({ url: doc.url, id: doc.id }))
         : [];
 
-      // Get ratings from map or default to 0
-      const ratingInfo = ratingsMap[provider.id] || { ratingAverage: 0, ratingCount: 0 };
 
       return {
         ...provider.toJSON(),
         isTopListed,
         daysRemaining,
-        brandImages: brandImages,
-        ratingAverage: Math.round(ratingInfo.ratingAverage * 10) / 10,
-        ratingCount: ratingInfo.ratingCount
+        brandImages: brandImages
       };
     });
 
@@ -1010,34 +866,7 @@ class ProviderService {
       order: orderClause
     });
 
-    // Get provider IDs to calculate ratings
-    const providerIds = providers.rows.map(p => p.id);
-    
-    // Calculate ratings for all providers in batch
-    const ratingsMap = {};
-    if (providerIds.length > 0) {
-      const reviews = await Review.findAll({
-        where: {
-          providerId: { [Op.in]: providerIds },
-          isVisible: true
-        },
-        attributes: [
-          'providerId',
-          [sequelize.fn('AVG', sequelize.col('rating')), 'averageRating'],
-          [sequelize.fn('COUNT', sequelize.col('id')), 'totalReviews']
-        ],
-        group: ['providerId']
-      });
-
-      reviews.forEach(review => {
-        ratingsMap[review.providerId] = {
-          ratingAverage: parseFloat(review.getDataValue('averageRating')) || 0,
-          ratingCount: parseInt(review.getDataValue('totalReviews')) || 0
-        };
-      });
-    }
-
-    // Add computed fields including ratings
+    // Add computed fields
     const providersWithStatus = providers.rows.map(provider => {
       const isTopListed = provider.topListingEndDate && new Date(provider.topListingEndDate) > new Date();
       const daysRemaining = isTopListed 
@@ -1051,16 +880,12 @@ class ProviderService {
             .map(doc => ({ url: doc.url, id: doc.id }))
         : [];
 
-      // Get ratings from map or default to 0
-      const ratingInfo = ratingsMap[provider.id] || { ratingAverage: 0, ratingCount: 0 };
 
       return {
         ...provider.toJSON(),
         isTopListed,
         daysRemaining,
-        brandImages: brandImages,
-        ratingAverage: Math.round(ratingInfo.ratingAverage * 10) / 10,
-        ratingCount: ratingInfo.ratingCount
+        brandImages: brandImages
       };
     });
 
@@ -1376,163 +1201,6 @@ class ProviderService {
       };
     } catch (error) {
       console.error('Error creating user and registration progress:', error);
-      throw error;
-    }
-  }
-
-  async ensureProviderSettings(userId) {
-    try {
-      const [settings] = await ProviderSetting.findOrCreate({
-        where: { userId },
-        defaults: {
-          notifications: DEFAULT_NOTIFICATION_SETTINGS,
-          privacy: DEFAULT_PRIVACY_SETTINGS,
-          autoAcceptBookings: DEFAULT_ACCOUNT_SETTINGS.autoAcceptBookings,
-          twoFactorAuth: DEFAULT_ACCOUNT_SETTINGS.twoFactorAuth,
-          allowDirectMessages: DEFAULT_ACCOUNT_SETTINGS.allowDirectMessages,
-        },
-      });
-
-      // Merge with defaults in case of missing fields
-      const mergedNotifications = {
-        ...DEFAULT_NOTIFICATION_SETTINGS,
-        ...(settings.notifications || {}),
-      };
-      const mergedPrivacy = {
-        ...DEFAULT_PRIVACY_SETTINGS,
-        ...(settings.privacy || {}),
-      };
-      const mergedAccount = {
-        autoAcceptBookings: settings.autoAcceptBookings ?? DEFAULT_ACCOUNT_SETTINGS.autoAcceptBookings,
-        twoFactorAuth: settings.twoFactorAuth ?? DEFAULT_ACCOUNT_SETTINGS.twoFactorAuth,
-        allowDirectMessages: settings.allowDirectMessages ?? DEFAULT_ACCOUNT_SETTINGS.allowDirectMessages,
-      };
-
-      if (
-        JSON.stringify(settings.notifications) !== JSON.stringify(mergedNotifications) ||
-        JSON.stringify(settings.privacy) !== JSON.stringify(mergedPrivacy) ||
-        settings.autoAcceptBookings !== mergedAccount.autoAcceptBookings ||
-        settings.twoFactorAuth !== mergedAccount.twoFactorAuth ||
-        settings.allowDirectMessages !== mergedAccount.allowDirectMessages
-      ) {
-        await settings.update({
-          notifications: mergedNotifications,
-          privacy: mergedPrivacy,
-          autoAcceptBookings: mergedAccount.autoAcceptBookings,
-          twoFactorAuth: mergedAccount.twoFactorAuth,
-          allowDirectMessages: mergedAccount.allowDirectMessages,
-        });
-      }
-
-      return settings;
-    } catch (error) {
-      console.error('ensureProviderSettings error:', error);
-      throw error;
-    }
-  }
-
-  async getProviderSettings(userId) {
-    try {
-      const settings = await this.ensureProviderSettings(userId);
-
-      return {
-        success: true,
-        data: {
-          notifications: {
-            ...DEFAULT_NOTIFICATION_SETTINGS,
-            ...(settings.notifications || {}),
-          },
-          privacy: {
-            ...DEFAULT_PRIVACY_SETTINGS,
-            ...(settings.privacy || {}),
-          },
-          autoAcceptBookings: settings.autoAcceptBookings ?? DEFAULT_ACCOUNT_SETTINGS.autoAcceptBookings,
-          twoFactorAuth: settings.twoFactorAuth ?? DEFAULT_ACCOUNT_SETTINGS.twoFactorAuth,
-          allowDirectMessages: settings.allowDirectMessages ?? DEFAULT_ACCOUNT_SETTINGS.allowDirectMessages,
-          preferences: settings.preferences || {},
-        },
-      };
-    } catch (error) {
-      console.error('getProviderSettings error:', error);
-      throw error;
-    }
-  }
-
-  async updateProviderSettings(userId, payload = {}) {
-    try {
-      const settings = await this.ensureProviderSettings(userId);
-
-      const updates = {};
-
-      if (payload.notifications) {
-        updates.notifications = {
-          ...DEFAULT_NOTIFICATION_SETTINGS,
-          ...(settings.notifications || {}),
-          ...payload.notifications,
-        };
-      }
-
-      if (payload.privacy) {
-        updates.privacy = {
-          ...DEFAULT_PRIVACY_SETTINGS,
-          ...(settings.privacy || {}),
-          ...payload.privacy,
-        };
-      }
-
-      if (payload.preferences) {
-        updates.preferences = {
-          ...(settings.preferences || {}),
-          ...payload.preferences,
-        };
-      }
-
-      const accountUpdates = {};
-      if (payload.autoAcceptBookings !== undefined) {
-        accountUpdates.autoAcceptBookings = Boolean(payload.autoAcceptBookings);
-      }
-      if (payload.twoFactorAuth !== undefined) {
-        accountUpdates.twoFactorAuth = Boolean(payload.twoFactorAuth);
-      }
-      if (payload.allowDirectMessages !== undefined) {
-        accountUpdates.allowDirectMessages = Boolean(payload.allowDirectMessages);
-      }
-
-      if (Object.keys(accountUpdates).length > 0) {
-        Object.assign(updates, accountUpdates);
-      }
-
-      if (Object.keys(updates).length === 0) {
-        return this.getProviderSettings(userId);
-      }
-
-      await settings.update(updates);
-
-      return this.getProviderSettings(userId);
-    } catch (error) {
-      console.error('updateProviderSettings error:', error);
-      throw error;
-    }
-  }
-
-  async updateProviderNotificationSettings(userId, notificationSettings = {}) {
-    try {
-      return this.updateProviderSettings(userId, {
-        notifications: notificationSettings,
-      });
-    } catch (error) {
-      console.error('updateProviderNotificationSettings error:', error);
-      throw error;
-    }
-  }
-
-  async updateProviderPrivacySettings(userId, privacySettings = {}) {
-    try {
-      return this.updateProviderSettings(userId, {
-        privacy: privacySettings,
-      });
-    } catch (error) {
-      console.error('updateProviderPrivacySettings error:', error);
       throw error;
     }
   }

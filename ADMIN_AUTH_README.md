@@ -93,7 +93,7 @@ npm run setup-admin
 ```
 
 This will create an admin user with:
-- **Email**: admin@alabastar.com
+- **Email**: admin@alabastar.ng
 - **Password**: admin123
 
 ### 3. **Environment Variables**
@@ -117,7 +117,7 @@ npm run dev
 ```javascript
 // POST /api/admin/auth/login
 {
-  "email": "admin@alabastar.com",
+  "email": "admin@alabastar.ng",
   "password": "admin123"
 }
 
@@ -130,7 +130,7 @@ npm run dev
     "admin": {
       "id": "uuid",
       "fullName": "Alabastar Admin",
-      "email": "admin@alabastar.com",
+      "email": "admin@alabastar.ng",
       "role": "admin"
     }
   }
@@ -215,7 +215,7 @@ All endpoints return consistent error responses:
 ```bash
 curl -X POST http://localhost:8000/api/admin/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@alabastar.com","password":"admin123"}'
+  -d '{"email":"admin@alabastar.ng","password":"admin123"}'
 ```
 
 ### **Test Protected Route**

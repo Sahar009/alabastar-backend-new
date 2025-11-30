@@ -168,7 +168,7 @@ router.post('/reactivate', authenticateToken, authorizeRoles(['provider']), asyn
 router.post('/initialize-payment', authenticateToken, authorizeRoles(['provider']), async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { planId, callbackUrl: bodyCallbackUrl } = req.body || {};
+    const { planId } = req.body;
 
     if (!planId) {
       return messageHandler(res, BAD_REQUEST, 'Plan ID is required');
@@ -208,24 +208,18 @@ router.post('/initialize-payment', authenticateToken, authorizeRoles(['provider'
     // Include plan ID in reference as backup (in case metadata doesn't work)
     const reference = `sub_${providerProfile.id}_${plan.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    const defaultCallbackUrl =
-      process.env.SUBSCRIPTION_PAYMENT_CALLBACK_URL ||
-      `${process.env.FRONTEND_URL || 'http://localhost:3000'}/provider/settings?tab=subscription&payment=success`;
-    const callbackUrl = bodyCallbackUrl || defaultCallbackUrl;
-
     const paymentData = {
       email: providerProfile.User.email,
       amount: plan.price * 100, // Paystack expects amount in kobo
       reference,
-      callback_url: callbackUrl,
+      callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/provider/settings?tab=subscription&payment=success`,
       metadata: {
         payment_type: 'subscription',
         provider_id: providerProfile.id,
         plan_id: plan.id,
         plan_name: plan.name,
         plan_price: plan.price,
-        plan_interval: plan.interval,
-        return_url: callbackUrl,
+        plan_interval: plan.interval
       }
     };
 
@@ -254,53 +248,6 @@ router.post('/initialize-payment', authenticateToken, authorizeRoles(['provider'
   } catch (error) {
     console.error('Error initializing subscription payment:', error);
     return messageHandler(res, INTERNAL_SERVER_ERROR, 'Error initializing payment');
-  }
-});
-
-router.get('/payment/callback', async (req, res) => {
-  try {
-    const { reference = '', status = 'success', trxref = '' } = req.query || {};
-    const ref = (reference || trxref || '').toString();
-    const paymentStatus = (status || 'success').toString();
-    const deepLinkBase = process.env.MOBILE_SUBSCRIPTION_DEEPLINK || 'alabastar://subscription';
-    const deepLink = `${deepLinkBase}?status=${encodeURIComponent(paymentStatus)}${ref ? `&reference=${encodeURIComponent(ref)}` : ''}`;
-
-    const html = `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Payment ${paymentStatus === 'success' ? 'Successful' : 'Update'}</title>
-    <style>
-      body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #0f172a; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-      .card { background: #ffffff; padding: 32px 28px; border-radius: 20px; max-width: 420px; width: 90%; box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12); text-align: center; }
-      .status { font-size: 28px; font-weight: 700; margin-bottom: 12px; color: ${paymentStatus === 'success' ? '#22c55e' : '#f97316'}; }
-      .message { font-size: 15px; line-height: 1.6; color: #475569; margin-bottom: 24px; }
-      .button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 20px; border-radius: 999px; background: #ec4899; color: #ffffff; font-weight: 600; text-decoration: none; font-size: 15px; }
-      .reference { margin-top: 20px; font-size: 13px; color: #94a3b8; }
-    </style>
-  </head>
-  <body>
-    <div class="card">
-      <div class="status">Payment ${paymentStatus === 'success' ? 'Successful' : 'Status: ' + paymentStatus}</div>
-      <div class="message">
-        Thank you for completing your subscription payment. We are redirecting you back to the Alabastar app.
-        ${ref ? 'You can safely close this page once the app opens.' : ''}
-      </div>
-      <a class="button" href="${deepLink}">Return to Alabastar</a>
-      ${ref ? `<div class="reference">Reference: ${ref}</div>` : ''}
-    </div>
-    <script>
-      setTimeout(function(){ window.location.href = '${deepLink}'; }, 100);
-    </script>
-  </body>
-</html>`;
-
-    res.status(200).send(html);
-  } catch (error) {
-    console.error('Payment callback error:', error);
-    res.status(500).send('Payment processed. You may close this window.');
   }
 });
 

@@ -37,7 +37,6 @@ import Message from './Message.js';
 import MessageReadReceipt from './MessageReadReceipt.js';
 import MessageReaction from './MessageReaction.js';
 import ProviderRegistrationProgress from './ProviderRegistrationProgress.js';
-import ProviderSetting from './ProviderSetting.js';
 
 // Associations
 User.hasOne(Customer, { foreignKey: 'userId', as: 'customer' });
@@ -72,7 +71,7 @@ User.hasMany(Review, { foreignKey: 'reviewerId' });
 Booking.hasOne(Review, { foreignKey: 'bookingId', as: 'review' });
 Review.belongsTo(ProviderProfile, { foreignKey: 'providerId' });
 Review.belongsTo(User, { foreignKey: 'reviewerId' });
-Review.belongsTo(Booking, { foreignKey: 'bookingId', as: 'booking' });
+Review.belongsTo(Booking, { foreignKey: 'bookingId' });
 
 ChatThread.belongsTo(User, { foreignKey: 'userId', as: 'Customer' });
 ChatThread.belongsTo(ProviderProfile, { foreignKey: 'providerId', as: 'Provider' });
@@ -85,8 +84,6 @@ User.hasMany(Notification, { foreignKey: 'userId' });
 Notification.belongsTo(User, { foreignKey: 'userId' });
 User.hasOne(NotificationPreference, { foreignKey: 'userId' });
 NotificationPreference.belongsTo(User, { foreignKey: 'userId' });
-User.hasOne(ProviderSetting, { foreignKey: 'userId', as: 'providerSettings' });
-ProviderSetting.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 User.hasMany(DeviceToken, { foreignKey: 'userId' });
 DeviceToken.belongsTo(User, { foreignKey: 'userId' });
 
@@ -198,7 +195,6 @@ export {
   User,
   Customer,
   ProviderProfile,
-  ProviderSetting,
   ServiceCategory,
   Service,
   Booking,
