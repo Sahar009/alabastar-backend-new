@@ -141,6 +141,28 @@ class AuthController {
     }
   }
 
+  async googleAuth(req, res) {
+    try {
+      const { email, name, picture, googleId } = req.body;
+
+      if (!email || !googleId) {
+        return messageHandler(res, BAD_REQUEST, 'Email and Google ID are required');
+      }
+
+      const result = await authService.googleAuth({
+        email,
+        name: name || email.split('@')[0],
+        picture,
+        googleId
+      });
+
+      return messageHandler(res, SUCCESS, 'Google authentication successful', result);
+    } catch (error) {
+      console.error('Google auth error:', error);
+      return messageHandler(res, INTERNAL_SERVER_ERROR, 'Google authentication failed');
+    }
+  }
+
   async firebaseAuth(req, res) {
     try {
       const { idToken, email, displayName, photoURL, uid, phone } = req.body;

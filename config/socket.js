@@ -35,8 +35,12 @@ export const initializeSocket = (server) => {
         return next(new Error('Authentication error: No token provided'));
       }
 
-      const decoded = jwt.verify(token, config.jwtSecret);
-      socket.userId = decoded.id;
+      // Use the same JWT secret as the auth service
+      const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+      const decoded = jwt.verify(token, jwtSecret);
+      
+      // JWT payload uses 'userId', but support both 'userId' and 'id' for compatibility
+      socket.userId = decoded.userId || decoded.id;
       socket.userRole = decoded.role;
       
       next();

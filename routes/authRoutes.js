@@ -13,6 +13,7 @@ router.get('/test', (req, res) => {
 router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/provider/login', authController.loginProvider);
+router.post('/google', authController.googleAuth);
 router.post('/firebase', authController.firebaseAuth);
 
 // Protected routes
