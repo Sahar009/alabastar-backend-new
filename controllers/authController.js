@@ -204,9 +204,29 @@ class AuthController {
     }
   }
 
+  async getProfile(req, res) {
+    try {
+      const userId = req.user.userId || req.user.id;
+      const { User } = await import('../schema/index.js');
+      
+      const user = await User.findByPk(userId, {
+        attributes: ['id', 'fullName', 'email', 'phone', 'role', 'status', 'avatarUrl', 'privacySettings']
+      });
+
+      if (!user) {
+        return messageHandler(res, BAD_REQUEST, 'User not found');
+      }
+
+      return messageHandler(res, SUCCESS, 'Profile retrieved successfully', { user });
+    } catch (error) {
+      console.error('Get profile error:', error);
+      return messageHandler(res, INTERNAL_SERVER_ERROR, 'Failed to get profile');
+    }
+  }
+
   async updateProfile(req, res) {
     try {
-      const userId = req.user.userId;
+      const userId = req.user.userId || req.user.id;
       const updateData = req.body;
 
       const result = await authService.updateProfile(userId, updateData);

@@ -369,7 +369,8 @@ class AuthService {
           phone: user.phone,
           role: user.role,
           status: user.status,
-          provider: user.provider
+          provider: user.provider,
+          privacySettings: user.privacySettings
         },
         customer: user.customer ? {
           id: user.customer.id,
@@ -395,7 +396,7 @@ class AuthService {
     }
 
     // Update user data
-    const allowedUserFields = ['fullName', 'phone'];
+    const allowedUserFields = ['fullName', 'phone', 'privacySettings'];
     for (const field of allowedUserFields) {
       if (updateData[field] !== undefined) {
         user[field] = updateData[field];
@@ -418,7 +419,8 @@ class AuthService {
         phone: user.phone,
         role: user.role,
         status: user.status,
-        provider: user.provider
+        provider: user.provider,
+        privacySettings: user.privacySettings
       },
       customer: user.customer ? {
         id: user.customer.id,

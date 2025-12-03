@@ -4,6 +4,7 @@ import DeviceToken from '../schema/DeviceToken.js';
 import User from '../schema/User.js';
 import { sendEmail } from '../modules/notifications/email.js';
 import { Op } from 'sequelize';
+import initializeFirebase from '../config/firebase.js';
 
 class NotificationService {
   /**
@@ -169,7 +170,7 @@ class NotificationService {
 
   /**
    * Send push notification (FCM)
-   * This is a placeholder - actual implementation depends on Firebase setup
+   * Sends push notifications using Firebase Cloud Messaging
    */
   async sendPushNotification(notification) {
     try {
@@ -182,50 +183,130 @@ class NotificationService {
       });
 
       if (deviceTokens.length === 0) {
+        console.log(`[Push Notification] No active devices for user ${notification.userId}`);
         return { success: false, reason: 'no_devices' };
       }
 
-      // TODO: Implement FCM push notification
-      // This is where you'd integrate with Firebase Cloud Messaging
-      // For now, we'll just log and mark as ready for implementation
-      console.log(`[Push Notification Ready] Would send to ${deviceTokens.length} devices:`, {
-        title: notification.title,
-        body: notification.body,
-        data: {
-          notificationId: notification.id,
-          type: notification.type,
-          actionUrl: notification.actionUrl,
-          ...notification.meta
-        }
-      });
+      // Initialize Firebase Admin SDK
+      const admin = initializeFirebase();
+      
+      if (!admin) {
+        console.warn('[Push Notification] Firebase Admin SDK not initialized. Push notifications disabled.');
+        return { success: false, reason: 'firebase_not_configured' };
+      }
 
-      /* Example FCM implementation (commented out for now):
-      const admin = require('firebase-admin');
       const tokens = deviceTokens.map(dt => dt.token);
       
-      const message = {
-        notification: {
-          title: notification.title,
-          body: notification.body,
-          imageUrl: notification.imageUrl
-        },
-        data: {
-          notificationId: notification.id,
-          type: notification.type,
-          actionUrl: notification.actionUrl || '',
-          ...notification.meta
-        },
-        tokens: tokens
+      // Prepare notification payload
+      const notificationPayload = {
+        title: notification.title,
+        body: notification.body,
       };
 
-      const response = await admin.messaging().sendMulticast(message);
-      return { success: true, response };
-      */
+      // Add image URL if available (for rich notifications)
+      if (notification.imageUrl) {
+        notificationPayload.imageUrl = notification.imageUrl;
+      }
 
-      // For now, return success to indicate readiness
-      return { success: true, deviceCount: deviceTokens.length };
+      // Prepare data payload (for handling notification taps)
+      const dataPayload = {
+        notificationId: notification.id,
+        type: notification.type || 'general',
+      };
+
+      // Add action URL if available
+      if (notification.actionUrl) {
+        dataPayload.actionUrl = notification.actionUrl;
+      }
+
+      // Add metadata if available
+      if (notification.meta) {
+        Object.keys(notification.meta).forEach(key => {
+          // Ensure all values are strings (FCM requirement)
+          dataPayload[key] = String(notification.meta[key]);
+        });
+      }
+
+      // Build FCM message
+      const message = {
+        notification: notificationPayload,
+        data: dataPayload,
+        tokens: tokens,
+        // Android-specific options
+        android: {
+          priority: notification.priority === 'urgent' || notification.priority === 'high' ? 'high' : 'normal',
+          notification: {
+            sound: 'default',
+            channelId: 'default', // You may want to create different channels for different priority levels
+          }
+        },
+        // iOS-specific options
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1, // You may want to get actual badge count
+              priority: notification.priority === 'urgent' || notification.priority === 'high' ? 10 : 5,
+            }
+          }
+        }
+      };
+
+      // Send multicast message (up to 500 tokens)
+      // If more tokens, split into batches
+      const batchSize = 500;
+      let successCount = 0;
+      let failureCount = 0;
+      const failedTokens = [];
+
+      for (let i = 0; i < tokens.length; i += batchSize) {
+        const batchTokens = tokens.slice(i, i + batchSize);
+        const batchMessage = {
+          ...message,
+          tokens: batchTokens
+        };
+
+        try {
+          const response = await admin.messaging().sendEachForMulticast(batchMessage);
+          
+          successCount += response.successCount;
+          failureCount += response.failureCount;
+
+          // Handle failed tokens (invalid/expired tokens)
+          response.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+              const token = batchTokens[idx];
+              failedTokens.push({ token, error: resp.error });
+              
+              // Deactivate invalid tokens
+              if (resp.error?.code === 'messaging/invalid-registration-token' || 
+                  resp.error?.code === 'messaging/registration-token-not-registered') {
+                DeviceToken.update(
+                  { isActive: false },
+                  { where: { token } }
+                ).catch(err => console.error(`Error deactivating token ${token}:`, err));
+              }
+            }
+          });
+
+          console.log(`[Push Notification] Sent to ${response.successCount}/${batchTokens.length} devices in batch ${Math.floor(i/batchSize) + 1}`);
+        } catch (error) {
+          console.error(`[Push Notification] Error sending batch ${Math.floor(i/batchSize) + 1}:`, error);
+          failureCount += batchTokens.length;
+        }
+      }
+
+      console.log(`[Push Notification] Summary: ${successCount} successful, ${failureCount} failed out of ${tokens.length} total`);
+
+      return { 
+        success: successCount > 0, 
+        successCount, 
+        failureCount,
+        deviceCount: deviceTokens.length,
+        failedTokens: failedTokens.length > 0 ? failedTokens : undefined
+      };
     } catch (error) {
-      console.error('Error sending push notification:', error);
+      console.error('[Push Notification] Error sending push notification:', error);
       return { success: false, error: error.message };
     }
   }

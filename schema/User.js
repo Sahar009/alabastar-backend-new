@@ -67,6 +67,16 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING(128),
     allowNull: true,
     unique: true
+  },
+  privacySettings: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    defaultValue: {
+      showProfile: true,
+      showContactInfo: true,
+      showPortfolio: true
+    },
+    comment: 'Privacy preferences for both customers and providers: showProfile, showContactInfo, showPortfolio'
   }
 }, {
   timestamps: true,

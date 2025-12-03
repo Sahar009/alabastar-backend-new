@@ -719,7 +719,7 @@ class ProviderService {
       include: [
         {
           model: User,
-          attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl', 'isEmailVerified', 'isPhoneVerified']
+          attributes: ['id', 'fullName', 'email', 'phone', 'avatarUrl', 'isEmailVerified', 'isPhoneVerified', 'privacySettings']
         },
         {
           model: ProviderDocument,

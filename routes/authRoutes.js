@@ -18,6 +18,7 @@ router.post('/firebase', authController.firebaseAuth);
 
 // Protected routes
 router.get('/verify', authenticateToken, authController.verifyToken);
+router.get('/profile', authenticateToken, authController.getProfile);
 router.put('/profile', authenticateToken, authController.updateProfile);
 router.put('/change-password', authenticateToken, authController.changePassword);
 router.delete('/delete-account', authenticateToken, authController.deleteAccount);
