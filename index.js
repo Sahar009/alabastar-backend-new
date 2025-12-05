@@ -10,6 +10,7 @@ import { config } from './config/config.js';
 import initializeFirebase from './config/firebase.js';
 import { initializeSocket } from './config/socket.js';
 import SubscriptionExpirationService from './services/subscriptionExpirationService.js';
+import { ensurePrivacySettingsColumn } from './utils/ensurePrivacySettingsColumn.js';
 import './schema/index.js';
 
 const app = express();
@@ -107,6 +108,9 @@ const startServer = async () => {
   try {
     await connectToDB();
     console.log('✅ Database connected successfully');
+
+    // Ensure privacySettings column exists (auto-migration on startup)
+    await ensurePrivacySettingsColumn();
 
     // Initialize Firebase Admin SDK
     const firebaseInitialized = initializeFirebase();
