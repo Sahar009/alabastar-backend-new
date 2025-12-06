@@ -11,6 +11,7 @@ import initializeFirebase from './config/firebase.js';
 import { initializeSocket } from './config/socket.js';
 import SubscriptionExpirationService from './services/subscriptionExpirationService.js';
 import { ensurePrivacySettingsColumn } from './utils/ensurePrivacySettingsColumn.js';
+import { initializeAdminUsers } from './utils/initializeAdminUsers.js';
 import './schema/index.js';
 
 const app = express();
@@ -111,6 +112,9 @@ const startServer = async () => {
 
     // Ensure privacySettings column exists (auto-migration on startup)
     await ensurePrivacySettingsColumn();
+
+    // Initialize default admin users (admin@alabastar.com and support@alabastar.com)
+    await initializeAdminUsers();
 
     // Initialize Firebase Admin SDK
     const firebaseInitialized = initializeFirebase();
