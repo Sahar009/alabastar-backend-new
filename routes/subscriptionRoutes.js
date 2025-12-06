@@ -168,7 +168,7 @@ router.post('/reactivate', authenticateToken, authorizeRoles(['provider']), asyn
 router.post('/initialize-payment', authenticateToken, authorizeRoles(['provider']), async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { planId } = req.body;
+    const { planId, platform } = req.body; // Accept platform parameter (optional)
 
     if (!planId) {
       return messageHandler(res, BAD_REQUEST, 'Plan ID is required');
@@ -188,7 +188,7 @@ router.post('/initialize-payment', authenticateToken, authorizeRoles(['provider'
       return messageHandler(res, NOT_FOUND, 'Provider profile not found');
     }
 
-    console.log('Initializing payment for plan ID:', planId);
+    console.log('Initializing payment for plan ID:', planId, 'Platform:', platform || 'web');
 
     // Get the selected plan
     const plan = await SubscriptionPlan.findByPk(planId);
@@ -208,11 +208,23 @@ router.post('/initialize-payment', authenticateToken, authorizeRoles(['provider'
     // Include plan ID in reference as backup (in case metadata doesn't work)
     const reference = `sub_${providerProfile.id}_${plan.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+    // Determine callback URL based on platform
+    let callbackUrl;
+    if (platform === 'mobile') {
+      // Mobile deep link for mobile apps
+      callbackUrl = `alabastar://payment-success?reference=${reference}&type=subscription&planId=${plan.id}`;
+      console.log('Using mobile deep link callback:', callbackUrl);
+    } else {
+      // Web URL for web frontend (default for backward compatibility)
+      callbackUrl = `${process.env.FRONTEND_URL || 'https://alabastar.ng'}/provider/settings?tab=subscription&payment=success&reference=${reference}`;
+      console.log('Using web callback URL:', callbackUrl);
+    }
+
     const paymentData = {
       email: providerProfile.User.email,
       amount: plan.price * 100, // Paystack expects amount in kobo
       reference,
-      callback_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/provider/settings?tab=subscription&payment=success`,
+      callback_url: callbackUrl,
       metadata: {
         payment_type: 'subscription',
         provider_id: providerProfile.id,

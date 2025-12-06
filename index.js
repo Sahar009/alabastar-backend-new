@@ -107,6 +107,12 @@ app.use('*', (req, res) => {
 
 const startServer = async () => {
   try {
+    // Check critical environment variables
+    if (!process.env.JWT_SECRET) {
+      console.error('❌ JWT_SECRET is not set in environment variables!');
+      console.error('⚠️  Admin authentication will fail. Please set JWT_SECRET in your .env file.');
+    }
+
     await connectToDB();
     console.log('✅ Database connected successfully');
 
