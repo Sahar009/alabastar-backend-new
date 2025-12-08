@@ -3,7 +3,7 @@ import { hashPassword } from './index.js';
 
 /**
  * Initialize default admin users on server startup
- * Creates admin@alabastar.com and support@alabastar.com if they don't exist
+ * Creates support@alabastar.ng and developer@alabastar.ng if they don't exist
  */
 export const initializeAdminUsers = async () => {
   try {
@@ -11,14 +11,14 @@ export const initializeAdminUsers = async () => {
 
     const adminUsers = [
       {
-        email: 'admin@alabastar.com',
-        fullName: 'Alabastar Admin',
-        password: 'admin123@'
+        email: 'support@alabastar.ng',
+        fullName: 'Alabastar Support',
+        password: 'admin123'
       },
       {
-        email: 'support@alabastar.com',
-        fullName: 'Alabastar Support',
-        password: 'admin123@'
+        email: 'developer@alabastar.ng',
+        fullName: 'Alabastar Developer',
+        password: 'admin123'
       }
     ];
 
@@ -74,4 +74,5 @@ export const initializeAdminUsers = async () => {
     // Don't throw - allow server to start even if admin initialization fails
   }
 };
+
 

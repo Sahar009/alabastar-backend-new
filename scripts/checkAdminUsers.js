@@ -37,7 +37,7 @@ const checkAdminUsers = async () => {
       });
 
       // Check for specific admin emails
-      const requiredAdmins = ['admin@alabastar.com', 'support@alabastar.com'];
+      const requiredAdmins = ['support@alabastar.ng', 'developer@alabastar.ng'];
       console.log('🔍 Checking for required admin emails:\n');
 
       for (const email of requiredAdmins) {
@@ -65,4 +65,5 @@ const checkAdminUsers = async () => {
 };
 
 checkAdminUsers();
+
 
