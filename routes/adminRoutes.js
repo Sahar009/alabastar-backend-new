@@ -3295,8 +3295,8 @@ router.get('/subscriptions/:id', async (req, res) => {
           model: ProviderProfile,
           as: 'ProviderProfile',
           attributes: [
-            'id', 'businessName', 'verificationStatus', 'businessAddress', 
-            'businessPhone', 'businessEmail', 'yearsOfExperience'
+            'id', 'businessName', 'verificationStatus', 'category', 
+            'locationCity', 'locationState', 'bio', 'portfolio'
           ],
           include: [
             {
