@@ -57,7 +57,7 @@ class ProviderService {
         
         const paymentData = {
           email: providerData.email,
-          amount: selectedPlan.price, // Use subscription plan price instead of registration fee
+          amount: selectedPlan.price * 100, // Paystack expects amount in kobo (multiply by 100)
           reference,
           callback_url: callbackUrl,
           provider_id: null, // Will be set after successful payment

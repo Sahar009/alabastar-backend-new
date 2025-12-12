@@ -45,11 +45,11 @@ class SubscriptionService {
         // Don't fail the subscription creation if referral processing fails
       }
 
-      // Update top listing based on subscription plan
+      // Update top listing based on subscription plan - use subscription period end date
       try {
         const SubscriptionHelper = (await import('../utils/subscriptionHelper.js')).default;
-        await SubscriptionHelper.updateTopListing(providerId, planId);
-        console.log(`Top listing activated for provider ${providerId}`);
+        await SubscriptionHelper.updateTopListing(providerId, planId, periodEnd);
+        console.log(`Top listing activated for provider ${providerId} until ${periodEnd.toISOString()}`);
       } catch (listingError) {
         console.error('Error updating top listing:', listingError);
         // Don't fail the subscription creation if top listing fails
