@@ -217,8 +217,28 @@ export const getBookings = async (userId, userType = 'customer', filters = {}) =
     if (userType === 'customer') {
       whereClause.userId = userId;
   } else if (userType === 'provider') {
-    // When provider views, they pass their provider profile id ideally; if a user id is passed, map externally.
-    whereClause.providerId = userId;
+    // Resolve provider profile ID from user ID
+    // userId could be either a User ID or ProviderProfile ID
+    // First, try to find ProviderProfile by userId (assuming it's a User ID)
+    const providerProfile = await ProviderProfile.findOne({
+      where: {
+        [Op.or]: [
+          { userId: userId },
+          { id: userId }
+        ]
+      }
+    });
+
+    if (!providerProfile) {
+      return { 
+        success: false, 
+        message: 'Provider profile not found', 
+        statusCode: 404 
+      };
+    }
+
+    // Use the provider profile ID to filter bookings
+    whereClause.providerId = providerProfile.id;
   }
 
     // Additional filters
@@ -271,7 +291,21 @@ export const getBookingById = async (bookingId, userId, userType = 'customer') =
     if (userType === 'customer') {
       whereClause.userId = userId;
     } else if (userType === 'provider') {
-      whereClause.providerId = userId;
+      // Resolve provider profile ID from user ID
+      const providerProfile = await ProviderProfile.findOne({
+        where: {
+          [Op.or]: [
+            { userId: userId },
+            { id: userId }
+          ]
+        }
+      });
+
+      if (!providerProfile) {
+        return { success: false, message: 'Provider profile not found', statusCode: 404 };
+      }
+
+      whereClause.providerId = providerProfile.id;
     }
 
     const booking = await Booking.findOne({
@@ -320,7 +354,21 @@ export const updateBookingStatus = async (bookingId, userId, userType, newStatus
     if (userType === 'customer') {
       whereClause.userId = userId;
     } else if (userType === 'provider') {
-      whereClause.providerId = userId;
+      // Resolve provider profile ID from user ID
+      const providerProfile = await ProviderProfile.findOne({
+        where: {
+          [Op.or]: [
+            { userId: userId },
+            { id: userId }
+          ]
+        }
+      });
+
+      if (!providerProfile) {
+        return { success: false, message: 'Provider profile not found', statusCode: 404 };
+      }
+
+      whereClause.providerId = providerProfile.id;
     }
 
     const booking = await Booking.findOne({ where: whereClause });
@@ -452,7 +500,21 @@ export const cancelBooking = async (bookingId, userId, userType, reason = null) 
     if (userType === 'customer') {
       whereClause.userId = userId;
     } else if (userType === 'provider') {
-      whereClause.providerId = userId;
+      // Resolve provider profile ID from user ID
+      const providerProfile = await ProviderProfile.findOne({
+        where: {
+          [Op.or]: [
+            { userId: userId },
+            { id: userId }
+          ]
+        }
+      });
+
+      if (!providerProfile) {
+        return { success: false, message: 'Provider profile not found', statusCode: 404 };
+      }
+
+      whereClause.providerId = providerProfile.id;
     }
 
     const booking = await Booking.findOne({ where: whereClause });
