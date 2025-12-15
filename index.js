@@ -10,8 +10,6 @@ import { config } from './config/config.js';
 import initializeFirebase from './config/firebase.js';
 import { initializeSocket } from './config/socket.js';
 import SubscriptionExpirationService from './services/subscriptionExpirationService.js';
-import { ensurePrivacySettingsColumn } from './utils/ensurePrivacySettingsColumn.js';
-import { initializeAdminUsers } from './utils/initializeAdminUsers.js';
 import './schema/index.js';
 
 const app = express();
@@ -107,20 +105,8 @@ app.use('*', (req, res) => {
 
 const startServer = async () => {
   try {
-    // Check critical environment variables
-    if (!process.env.JWT_SECRET) {
-      console.error('❌ JWT_SECRET is not set in environment variables!');
-      console.error('⚠️  Admin authentication will fail. Please set JWT_SECRET in your .env file.');
-    }
-
     await connectToDB();
     console.log('✅ Database connected successfully');
-
-    // Ensure privacySettings column exists (auto-migration on startup)
-    await ensurePrivacySettingsColumn();
-
-    // Initialize default admin users (admin@alabastar.com and support@alabastar.com)
-    await initializeAdminUsers();
 
     // Initialize Firebase Admin SDK
     const firebaseInitialized = initializeFirebase();

@@ -43,23 +43,11 @@ class ProviderService {
 
         const reference = `provider_reg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         
-        // Determine callback URL based on platform
-        let callbackUrl;
-        if (providerData.platform === 'mobile') {
-          // Mobile deep link for mobile apps
-          callbackUrl = `alabastar://payment-success?reference=${reference}&type=registration`;
-          console.log('Using mobile deep link callback for registration:', callbackUrl);
-        } else {
-          // Web URL for web frontend (default for backward compatibility)
-          callbackUrl = `${process.env.FRONTEND_URL || 'https://alabastar.ng'}/provider/registration/success?reference=${reference}`;
-          console.log('Using web callback URL for registration:', callbackUrl);
-        }
-        
         const paymentData = {
           email: providerData.email,
-          amount: selectedPlan.price * 100, // Paystack expects amount in kobo (multiply by 100)
+          amount: selectedPlan.price, // Use subscription plan price instead of registration fee
           reference,
-          callback_url: callbackUrl,
+          callback_url: `${process.env.FRONTEND_URL || 'https://alabastar.ng'}/provider/registration/success`,
           provider_id: null, // Will be set after successful payment
           business_name: providerData.businessName,
           full_name: providerData.fullName,

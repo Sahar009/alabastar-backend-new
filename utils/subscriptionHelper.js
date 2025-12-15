@@ -201,11 +201,8 @@ class SubscriptionHelper {
 
   /**
    * Update provider's top listing dates based on subscription
-   * @param {string} providerId - Provider profile ID
-   * @param {string} subscriptionPlanId - Subscription plan ID
-   * @param {Date} subscriptionEndDate - Optional: subscription period end date (if not provided, calculates from plan interval)
    */
-  static async updateTopListing(providerId, subscriptionPlanId, subscriptionEndDate = null) {
+  static async updateTopListing(providerId, subscriptionPlanId) {
     try {
       const plan = await SubscriptionPlan.findByPk(subscriptionPlanId);
       
@@ -214,49 +211,31 @@ class SubscriptionHelper {
       }
 
       const features = plan.features;
+      const topListingDays = features.topListingDays || 0;
       const priority = features.priority || 1;
 
-      // If topListingDays is 0 or not set, skip top listing activation
-      const topListingDays = features.topListingDays || 0;
-      if (topListingDays === 0) {
+      if (topListingDays > 0) {
+        const now = new Date();
+        const endDate = new Date(now.getTime() + topListingDays * 24 * 60 * 60 * 1000);
+
+        await ProviderProfile.update({
+          topListingStartDate: now,
+          topListingEndDate: endDate,
+          listingPriority: priority
+        }, {
+          where: { id: providerId }
+        });
+
         return {
-          success: false,
-          message: 'Plan does not include top listing'
+          success: true,
+          message: 'Top listing activated',
+          endDate
         };
       }
 
-      const now = new Date();
-      let endDate;
-
-      // Use subscription end date if provided, otherwise calculate from plan interval
-      if (subscriptionEndDate) {
-        endDate = new Date(subscriptionEndDate);
-      } else {
-        // Calculate end date based on subscription interval (yearly or monthly)
-        if (plan.interval === 'yearly') {
-          endDate = new Date(now);
-          endDate.setFullYear(endDate.getFullYear() + 1);
-        } else if (plan.interval === 'monthly') {
-          endDate = new Date(now);
-          endDate.setMonth(endDate.getMonth() + 1);
-        } else {
-          // Fallback to using topListingDays if interval is not recognized
-          endDate = new Date(now.getTime() + topListingDays * 24 * 60 * 60 * 1000);
-        }
-      }
-
-      await ProviderProfile.update({
-        topListingStartDate: now,
-        topListingEndDate: endDate,
-        listingPriority: priority
-      }, {
-        where: { id: providerId }
-      });
-
       return {
-        success: true,
-        message: 'Top listing activated',
-        endDate
+        success: false,
+        message: 'Plan does not include top listing'
       };
     } catch (error) {
       console.error('Error updating top listing:', error);

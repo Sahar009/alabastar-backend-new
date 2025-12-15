@@ -18,36 +18,16 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    console.log('[Admin Login] Attempt:', { email: email.toLowerCase(), hasPassword: !!password });
-
     // Find admin user
     const admin = await User.findOne({
       where: {
         email: email.toLowerCase(),
-        role: 'admin'
+        role: 'admin',
+        status: 'active'
       }
     });
 
     if (!admin) {
-      console.log('[Admin Login] ❌ Admin not found:', email.toLowerCase());
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-
-    // Check admin status
-    if (admin.status !== 'active') {
-      console.log('[Admin Login] ❌ Admin status is not active:', { email: admin.email, status: admin.status });
-      return res.status(401).json({
-        success: false,
-        message: 'Account is not active. Please contact support.'
-      });
-    }
-
-    // Check if password hash exists
-    if (!admin.passwordHash) {
-      console.log('[Admin Login] ❌ Admin has no password hash:', admin.email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -57,26 +37,14 @@ router.post('/login', async (req, res) => {
     // Check password
     const isPasswordValid = await bcrypt.compare(password, admin.passwordHash);
     if (!isPasswordValid) {
-      console.log('[Admin Login] ❌ Invalid password for:', admin.email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
 
-    console.log('[Admin Login] ✅ Login successful for:', admin.email);
-
     // Update last login
     await admin.update({ lastLoginAt: new Date() });
-
-    // Check if JWT_SECRET is set
-    if (!process.env.JWT_SECRET) {
-      console.error('[Admin Login] ❌ JWT_SECRET is not set in environment variables');
-      return res.status(500).json({
-        success: false,
-        message: 'Server configuration error. Please contact support.'
-      });
-    }
 
     // Generate JWT token
     const token = jwt.sign(
@@ -107,16 +75,10 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('[Admin Login] ❌ Error:', error);
-    console.error('[Admin Login] Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack?.split('\n')[0]
-    });
+    console.error('Admin login error:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      ...(process.env.NODE_ENV === 'development' && { error: error.message })
+      message: 'Internal server error'
     });
   }
 });
