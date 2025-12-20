@@ -1,5 +1,6 @@
 import { Sequelize } from 'sequelize';
 import { config } from "../config/config.js";
+import { runMigrations } from './runMigrations.js';
 
 const sequelize = new Sequelize(
   config.database.name,
@@ -41,6 +42,14 @@ export const connectToDB = async () => {
     
     await sequelize.authenticate()
     console.log("✅ Connected to Cloud SQL database successfully")
+
+    // Run migrations first
+    try {
+      await runMigrations();
+    } catch (migrationError) {
+      console.error("❌ Migration failed:", migrationError.message);
+      // Continue anyway - migrations might fail if already applied
+    }
 
     // Sync database with proper order handling
     try {
