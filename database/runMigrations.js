@@ -58,11 +58,17 @@ export const runMigrations = async () => {
         
         const migrationPath = path.join(migrationsPath, file);
         
-        // Clear require cache to ensure fresh load
-        delete require.cache[require.resolve(migrationPath)];
-        const migration = require(migrationPath);
-        
         try {
+          // Clear require cache to ensure fresh load
+          delete require.cache[require.resolve(migrationPath)];
+          const migration = require(migrationPath);
+          
+          // Validate migration has up function
+          if (!migration || typeof migration.up !== 'function') {
+            console.warn(`⚠️ Skipping invalid migration: ${file} (missing up function)`);
+            continue;
+          }
+          
           await migration.up(sequelize.getQueryInterface(), Sequelize);
           
           // Mark as executed
