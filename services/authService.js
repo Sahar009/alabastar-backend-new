@@ -485,6 +485,156 @@ class AuthService {
       return { success: false, message: error.message || 'Failed to delete account' };
     }
   }
+
+  async forgotPassword(email) {
+    try {
+      // Find user by email (both customer and provider)
+      const user = await User.findOne({ where: { email } });
+
+      if (!user) {
+        // Don't reveal if user exists or not for security
+        return { success: true, message: 'If an account exists with this email, a reset code has been sent.' };
+      }
+
+      // Generate 6-digit OTP code
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Hash the reset code for storage
+      const resetCodeHash = crypto.createHash('sha256').update(resetCode).digest('hex');
+      
+      // Set expiration to 15 minutes from now
+      const resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000);
+
+      // Save reset code and expiry to user
+      user.resetPasswordToken = resetCodeHash;
+      user.resetPasswordExpires = resetCodeExpiry;
+      await user.save();
+
+      // Send email with reset code
+      try {
+        await sendEmail(
+          email,
+          'Password Reset Code - Alabastar',
+          '',
+          'password-reset-code',
+          {
+            fullName: user.fullName,
+            resetCode: resetCode,
+            expiryMinutes: 15
+          }
+        );
+      } catch (emailError) {
+        console.error('Failed to send reset code email:', emailError);
+        throw new Error('Failed to send reset code. Please try again.');
+      }
+
+      return { 
+        success: true, 
+        message: 'A 6-digit reset code has been sent to your email.' 
+      };
+    } catch (error) {
+      console.error('Error in forgotPassword:', error);
+      throw error;
+    }
+  }
+
+  async verifyResetCode(email, code) {
+    try {
+      const user = await User.findOne({ where: { email } });
+
+      if (!user) {
+        throw new Error('Invalid reset code');
+      }
+
+      if (!user.resetPasswordToken || !user.resetPasswordExpires) {
+        throw new Error('No reset code found. Please request a new one.');
+      }
+
+      // Check if code has expired
+      if (new Date() > user.resetPasswordExpires) {
+        throw new Error('Reset code has expired. Please request a new one.');
+      }
+
+      // Hash the provided code and compare
+      const codeHash = crypto.createHash('sha256').update(code).digest('hex');
+      
+      if (codeHash !== user.resetPasswordToken) {
+        throw new Error('Invalid reset code');
+      }
+
+      // Generate a temporary token for password reset
+      const resetToken = jwt.sign(
+        { 
+          userId: user.id, 
+          email: user.email,
+          purpose: 'password-reset'
+        },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '15m' }
+      );
+
+      return { 
+        success: true, 
+        message: 'Code verified successfully',
+        resetToken
+      };
+    } catch (error) {
+      console.error('Error in verifyResetCode:', error);
+      throw error;
+    }
+  }
+
+  async resetPassword(resetToken, newPassword) {
+    try {
+      // Verify the reset token
+      const decoded = jwt.verify(resetToken, process.env.JWT_SECRET || 'your-secret-key');
+      
+      if (decoded.purpose !== 'password-reset') {
+        throw new Error('Invalid reset token');
+      }
+
+      const user = await User.findByPk(decoded.userId);
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Hash the new password
+      const newPasswordHash = await hashPassword(newPassword);
+
+      // Update password and clear reset token fields
+      user.passwordHash = newPasswordHash;
+      user.resetPasswordToken = null;
+      user.resetPasswordExpires = null;
+      await user.save();
+
+      // Send confirmation email
+      try {
+        await sendEmail(
+          user.email,
+          'Password Changed Successfully - Alabastar',
+          '',
+          'password-changed',
+          {
+            fullName: user.fullName
+          }
+        );
+      } catch (emailError) {
+        console.error('Failed to send password change confirmation email:', emailError);
+      }
+
+      return { 
+        success: true, 
+        message: 'Password has been reset successfully' 
+      };
+    } catch (error) {
+      console.error('Error in resetPassword:', error);
+      if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+        throw new Error('Invalid or expired reset token');
+      }
+      throw error;
+    }
+  }
 }
 
 export default new AuthService();

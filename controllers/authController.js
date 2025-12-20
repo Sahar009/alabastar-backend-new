@@ -283,6 +283,79 @@ class AuthController {
       return messageHandler(res, INTERNAL_SERVER_ERROR, error.message || 'Failed to delete account');
     }
   }
+
+  async forgotPassword(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return messageHandler(res, BAD_REQUEST, 'Email is required');
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return messageHandler(res, BAD_REQUEST, 'Invalid email format');
+      }
+
+      const result = await authService.forgotPassword(email);
+
+      return messageHandler(res, SUCCESS, result.message);
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      return messageHandler(res, INTERNAL_SERVER_ERROR, error.message || 'Failed to process password reset request');
+    }
+  }
+
+  async verifyResetCode(req, res) {
+    try {
+      const { email, code } = req.body;
+
+      if (!email || !code) {
+        return messageHandler(res, BAD_REQUEST, 'Email and reset code are required');
+      }
+
+      // Email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return messageHandler(res, BAD_REQUEST, 'Invalid email format');
+      }
+
+      // Code validation (6 digits)
+      if (!/^\d{6}$/.test(code)) {
+        return messageHandler(res, BAD_REQUEST, 'Invalid code format. Code must be 6 digits');
+      }
+
+      const result = await authService.verifyResetCode(email, code);
+
+      return messageHandler(res, SUCCESS, result.message, { resetToken: result.resetToken });
+    } catch (error) {
+      console.error('Verify reset code error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message || 'Failed to verify reset code');
+    }
+  }
+
+  async resetPassword(req, res) {
+    try {
+      const { resetToken, newPassword } = req.body;
+
+      if (!resetToken || !newPassword) {
+        return messageHandler(res, BAD_REQUEST, 'Reset token and new password are required');
+      }
+
+      // Password validation
+      if (newPassword.length < 8) {
+        return messageHandler(res, BAD_REQUEST, 'Password must be at least 8 characters long');
+      }
+
+      const result = await authService.resetPassword(resetToken, newPassword);
+
+      return messageHandler(res, SUCCESS, result.message);
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return messageHandler(res, BAD_REQUEST, error.message || 'Failed to reset password');
+    }
+  }
 }
 
 export default new AuthController();

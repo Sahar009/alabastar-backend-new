@@ -77,6 +77,16 @@ const User = sequelize.define('User', {
       showPortfolio: true
     },
     comment: 'Privacy preferences for both customers and providers: showProfile, showContactInfo, showPortfolio'
+  },
+  resetPasswordToken: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+    comment: 'Hashed reset code for password recovery'
+  },
+  resetPasswordExpires: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Expiration time for reset code'
   }
 }, {
   timestamps: true,

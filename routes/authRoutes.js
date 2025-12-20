@@ -15,6 +15,9 @@ router.post('/login', authController.login);
 router.post('/provider/login', authController.loginProvider);
 router.post('/google', authController.googleAuth);
 router.post('/firebase', authController.firebaseAuth);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/verify-reset-code', authController.verifyResetCode);
+router.post('/reset-password', authController.resetPassword);
 
 // Protected routes
 router.get('/verify', authenticateToken, authController.verifyToken);

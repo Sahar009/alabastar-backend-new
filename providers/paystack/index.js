@@ -68,12 +68,22 @@ class PaystackService {
     }
 
     async initializeTransaction(data, callback) {
+        // Determine callback URL based on platform (mobile vs web)
+        let callbackUrl;
+        if (data.platform === 'mobile') {
+            // Deep link for mobile app - will reopen the app after payment
+            callbackUrl = data.callback_url || 'alabastar://payment/success';
+        } else {
+            // Web URL for web platform
+            callbackUrl = data.callback_url || `${process.env.FRONTEND_URL}/provider/registration/success`;
+        }
+
         const payload = {
             email: data.email,
             amount: data.amount , // Convert to kobo (Paystack expects amount in kobo)
             currency: "NGN",
             reference: data.reference || `provider_reg_${Date.now()}`,
-            callback_url: data.callback_url || `${process.env.FRONTEND_URL}/provider/registration/success`,
+            callback_url: callbackUrl,
             metadata: {
                 provider_id: data.provider_id,
                 business_name: data.business_name,
@@ -82,7 +92,8 @@ class PaystackService {
                 category: data.category,
                 registration_type: 'provider_registration',
                 subscription_plan_id: data.registration_data?.subscriptionPlanId,
-                registration_data: data.registration_data
+                registration_data: data.registration_data,
+                platform: data.platform || 'web'
             }
         };
 
