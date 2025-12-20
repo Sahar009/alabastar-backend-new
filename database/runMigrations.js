@@ -3,9 +3,11 @@ import { config } from '../config/config.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
 
 export const runMigrations = async () => {
   const sequelize = new Sequelize(
@@ -55,6 +57,9 @@ export const runMigrations = async () => {
         console.log(`📝 Running migration: ${file}`);
         
         const migrationPath = path.join(migrationsPath, file);
+        
+        // Clear require cache to ensure fresh load
+        delete require.cache[require.resolve(migrationPath)];
         const migration = require(migrationPath);
         
         try {
