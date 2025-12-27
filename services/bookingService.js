@@ -217,8 +217,30 @@ export const getBookings = async (userId, userType = 'customer', filters = {}) =
     if (userType === 'customer') {
       whereClause.userId = userId;
   } else if (userType === 'provider') {
-    // When provider views, they pass their provider profile id ideally; if a user id is passed, map externally.
-    whereClause.providerId = userId;
+    // Look up provider profile ID from user ID
+    const providerProfile = await ProviderProfile.findOne({
+      where: { userId: userId },
+      attributes: ['id']
+    });
+    
+    if (!providerProfile) {
+      return {
+        success: true,
+        message: 'Bookings retrieved successfully',
+        statusCode: 200,
+        data: {
+          bookings: [],
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: 0,
+            totalItems: 0,
+            itemsPerPage: parseInt(limit)
+          }
+        }
+      };
+    }
+    
+    whereClause.providerId = providerProfile.id;
   }
 
     // Additional filters
